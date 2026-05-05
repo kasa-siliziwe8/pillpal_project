@@ -1,0 +1,74 @@
+{% extends 'core/base.html' %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Settings</h1><p class="subtitle">Manage your profile, reminders, and privacy</p></div>
+<form method="post">
+  {% csrf_token %}
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start;">
+    <div>
+      <div class="card mb-20">
+        <div class="card-label mb-16">Personal Profile</div>
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;">
+          <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--terracotta),var(--ochre));display:flex;align-items:center;justify-content:center;color:white;font-family:'Fraunces',serif;font-size:1.5rem;font-weight:700;">{{ user.initials }}</div>
+          <div><div style="font-family:'Fraunces',serif;font-size:1.1rem;font-weight:600;">{{ user.get_full_name }}</div><div class="text-sm">{{ user.get_role_display }}{% if user.clinic %} · {{ user.clinic }}{% endif %}</div></div>
+        </div>
+        <div class="grid-2">
+          <div class="form-group"><label class="form-label">First Name</label><input class="form-input" type="text" name="first_name" value="{{ user.first_name }}"></div>
+          <div class="form-group"><label class="form-label">Last Name</label><input class="form-input" type="text" name="last_name" value="{{ user.last_name }}"></div>
+        </div>
+        <div class="form-group"><label class="form-label">Phone Number</label><input class="form-input" type="tel" name="phone_number" value="{{ user.phone_number }}"></div>
+        <div class="form-group"><label class="form-label">Preferred Language</label>
+          <select class="form-select" name="language_preference">
+            {% for code,label in user.LANGUAGE_CHOICES %}<option value="{{ code }}" {% if user.language_preference == code %}selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+        </div>
+        {% if clinics %}
+        <div class="form-group"><label class="form-label">Clinic</label>
+          <select class="form-select" name="clinic">
+            <option value="">— None —</option>
+            {% for c in clinics %}<option value="{{ c.pk }}" {% if user.clinic and user.clinic.pk == c.pk %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+          </select>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div>
+      <div class="card mb-20">
+        <div class="card-label mb-16">Reminder Channel</div>
+        {% for code,label in user.CHANNEL_CHOICES %}
+        <label style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:var(--radius-sm);border:1.5px solid {% if user.channel_preference == code %}var(--teal){% else %}var(--ink-10){% endif %};background:{% if user.channel_preference == code %}var(--teal-pale){% else %}white{% endif %};cursor:pointer;margin-bottom:8px;transition:all .15s;">
+          <input type="radio" name="channel_preference" value="{{ code }}" {% if user.channel_preference == code %}checked{% endif %} style="accent-color:var(--teal);">
+          <div><div style="font-weight:600;font-size:.9rem;">{{ label }}</div></div>
+        </label>
+        {% endfor %}
+      </div>
+
+      <div class="card mb-20">
+        <div class="card-label mb-16">Notification Preferences</div>
+        {% for field,label,val in notif_fields %}
+        <div class="flex-between" style="margin-bottom:14px;">
+          <div><div style="font-weight:600;font-size:.9rem;">{{ label }}</div></div>
+          <label style="display:inline-flex;align-items:center;gap:10px;cursor:pointer;">
+            <input type="checkbox" name="{{ field }}" {% if val %}checked{% endif %} style="accent-color:var(--teal);width:18px;height:18px;">
+          </label>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="card">
+        <div class="card-label mb-16">Privacy &amp; Data</div>
+        <p class="text-sm" style="margin-bottom:16px;">Your data is encrypted (AES-256) and POPIA-compliant. Caregivers see adherence percentages only — not your health conditions.</p>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <button type="button" class="btn btn-ghost btn-sm" style="justify-content:flex-start;" onclick="showToast('Downloading your data…')">📥 Download My Data</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:24px;display:flex;gap:12px;">
+    <button type="submit" class="btn btn-primary">Save Settings</button>
+    <a href="{% url 'dashboard' %}" class="btn btn-ghost">Cancel</a>
+  </div>
+</form>
+{% endblock %}

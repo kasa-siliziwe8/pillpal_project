@@ -1,0 +1,56 @@
+{% extends 'core/base.html' %}
+{% block title %}Profile{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>My Profile</h1>
+  <p class="subtitle">Your Pill Pal account overview</p>
+</div>
+<div class="grid-2" style="align-items:start;">
+  <div class="card">
+    <div style="display:flex;align-items:center;gap:20px;margin-bottom:24px;">
+      <div style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,var(--terracotta),var(--ochre));display:flex;align-items:center;justify-content:center;color:white;font-family:'Fraunces',serif;font-size:1.8rem;font-weight:700;">{{ profile_user.initials }}</div>
+      <div>
+        <div style="font-family:'Fraunces',serif;font-size:1.4rem;font-weight:700;">{{ profile_user.get_full_name|default:profile_user.username }}</div>
+        <div><span class="badge badge-teal">{{ profile_user.get_role_display }}</span></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div class="flex-between"><span class="text-xs">Username</span><span style="font-weight:600;">{{ profile_user.username }}</span></div>
+      <div class="divider" style="margin:0;"></div>
+      <div class="flex-between"><span class="text-xs">Phone</span><span style="font-weight:600;">{{ profile_user.phone_number|default:"Not set" }}</span></div>
+      <div class="divider" style="margin:0;"></div>
+      <div class="flex-between"><span class="text-xs">Language</span><span style="font-weight:600;">{{ profile_user.get_language_preference_display }}</span></div>
+      <div class="divider" style="margin:0;"></div>
+      <div class="flex-between"><span class="text-xs">Reminder Channel</span><span style="font-weight:600;">{{ profile_user.get_channel_preference_display }}</span></div>
+      <div class="divider" style="margin:0;"></div>
+      <div class="flex-between"><span class="text-xs">Clinic</span><span style="font-weight:600;">{{ profile_user.clinic|default:"Not assigned" }}</span></div>
+      <div class="divider" style="margin:0;"></div>
+      <div class="flex-between"><span class="text-xs">Member Since</span><span style="font-weight:600;">{{ profile_user.date_joined|date:"d M Y" }}</span></div>
+    </div>
+    <div class="divider"></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <a href="{% url 'settings' %}" class="btn btn-primary btn-sm">Edit Profile</a>
+      <a href="{% url 'change_password' %}" class="btn btn-ghost btn-sm">Change Password</a>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:20px;">
+    {% if profile_user.role == 'patient' %}
+    <div class="card">
+      <div class="card-label mb-16">Quick Actions</div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <a href="{% url 'schedule_list' %}" class="btn btn-ghost btn-sm" style="justify-content:flex-start;">💊 Manage Schedules</a>
+        <a href="{% url 'dose_history' %}" class="btn btn-ghost btn-sm" style="justify-content:flex-start;">📋 Dose History</a>
+        <a href="{% url 'caregiver_management' %}" class="btn btn-ghost btn-sm" style="justify-content:flex-start;">👥 Manage Caregivers</a>
+        <a href="{% url 'reports' %}" class="btn btn-ghost btn-sm" style="justify-content:flex-start;">📊 View Reports</a>
+      </div>
+    </div>
+    {% endif %}
+    <div class="card" style="background:var(--amber-light);border-color:var(--amber);">
+      <div style="font-weight:700;font-size:.9rem;color:var(--amber);margin-bottom:8px;">⚠️ Account Security</div>
+      <p class="text-sm" style="color:var(--ink-60);margin-bottom:12px;">Keep your account secure. Never share your password or OTP with anyone, including clinic staff.</p>
+      <a href="{% url 'change_password' %}" class="btn btn-sm" style="background:var(--amber);color:white;">Change Password</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,162 @@
+{% extends 'core/base.html' %}
+{% block title %}SMS Channel{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>SMS Channel Simulator</h1>
+  <p class="subtitle">See how Pill Pal works on any phone — no data or smartphone required</p>
+</div>
+
+<div style="display:grid;grid-template-columns:340px 1fr;gap:32px;align-items:start;">
+  <!-- Phone mockup -->
+  <div>
+    <div style="background:#1A1A1A;border-radius:40px;padding:12px;box-shadow:0 20px 60px rgba(0,0,0,.3),inset 0 0 0 1px rgba(255,255,255,.1);position:sticky;top:84px;">
+      <div style="background:#000;border-radius:30px;overflow:hidden;height:580px;display:flex;flex-direction:column;">
+        <div style="background:#1C1C1E;display:flex;justify-content:space-between;align-items:center;padding:14px 20px 10px;color:white;font-size:.75rem;font-weight:600;">
+          <span id="phone-time">09:41</span><span>📶 MTN 🔋</span>
+        </div>
+        <div style="background:#1C1C1E;padding:10px 16px 14px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:10px;">
+          <div style="width:36px;height:36px;border-radius:50%;background:var(--teal);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;">PP</div>
+          <div><div style="color:white;font-weight:600;font-size:.9rem;">Pill Pal</div><div style="color:rgba(255,255,255,.4);font-size:.72rem;">+27 60 000 1111</div></div>
+        </div>
+        <div id="phone-messages" style="flex:1;overflow-y:auto;padding:16px 12px;display:flex;flex-direction:column;gap:10px;background:linear-gradient(180deg,#1A1A2E 0%,#0F0F1E 100%);">
+          <div style="padding:8px 12px;background:rgba(26,107,107,.15);border-radius:10px;font-size:.75rem;color:rgba(255,255,255,.5);text-align:center;border:1px solid rgba(26,107,107,.2);">Today</div>
+        </div>
+        <div style="background:#1C1C1E;padding:10px 12px;display:flex;gap:8px;align-items:center;border-top:1px solid rgba(255,255,255,.08);">
+          <input id="sms-input" type="text" placeholder="Type a message…" style="flex:1;background:#3A3A3C;border:none;border-radius:20px;padding:8px 14px;color:white;font-size:.82rem;font-family:'DM Sans',sans-serif;outline:none;" onkeypress="if(event.key==='Enter')sendSMS()">
+          <button onclick="sendSMS()" style="width:32px;height:32px;border-radius:50%;background:var(--teal);border:none;cursor:pointer;color:white;font-size:.9rem;display:flex;align-items:center;justify-content:center;">▶</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scenarios + Commands -->
+  <div style="display:flex;flex-direction:column;gap:20px;">
+    <div class="card">
+      <div class="card-label mb-16">Choose a Scenario</div>
+      <button class="scenario-btn active" onclick="loadScenario('reminder',this)">
+        <div style="font-weight:700;font-size:.9rem;">💊 Dose Reminder &amp; Confirmation</div>
+        <div class="text-sm">Automated reminder + patient confirms with reply "1"</div>
+      </button>
+      <button class="scenario-btn" onclick="loadScenario('escalation',this)">
+        <div style="font-weight:700;font-size:.9rem;">🚨 Missed Dose Escalation</div>
+        <div class="text-sm">No response triggers caregiver alert</div>
+      </button>
+      <button class="scenario-btn" onclick="loadScenario('info',this)">
+        <div style="font-weight:700;font-size:.9rem;">ℹ️ Medication Info Query</div>
+        <div class="text-sm">Patient queries drug info via SMS keyword</div>
+      </button>
+      <button class="scenario-btn" onclick="loadScenario('refill',this)">
+        <div style="font-weight:700;font-size:.9rem;">🔄 Refill Reminder</div>
+        <div class="text-sm">System alerts patient about low supply</div>
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="card-label mb-16">SMS Commands</div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        {% for cmd, desc in commands %}
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <code style="background:var(--cream);padding:4px 10px;border-radius:6px;font-size:.8rem;font-weight:700;color:var(--teal);">{{ cmd }}</code>
+          <span class="text-sm">{{ desc }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card" style="background:var(--teal-pale);border-color:var(--teal);">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><span style="font-size:1.3rem;">🌍</span><div class="card-label" style="margin:0;color:var(--teal);">Language Support</div></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <span class="badge badge-teal">English</span><span class="badge badge-teal">isiZulu</span>
+        <span class="badge badge-teal">isiXhosa</span><span class="badge badge-teal">Sesotho</span>
+        <span class="badge badge-teal">Setswana</span><span class="badge badge-amber">+ 6 planned</span>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CSRF = '{{ csrf_token }}';
+const scenarios = {
+  reminder:[
+    {from:'system',text:'[Scheduled reminder — 08:00]',delay:0},
+    {from:'received',text:'PILL PAL: {{ user.first_name }}, time to take your Tenofovir 300mg. Take with food. Reply 1 to confirm or HELP for info.',delay:800},
+    {from:'sent',text:'1',delay:2500},
+    {from:'received',text:'PILL PAL: ✓ Thank you {{ user.first_name }}! Tenofovir dose confirmed at 08:01. Next dose: 08:00 tomorrow. Keep it up! 💪',delay:3500},
+  ],
+  escalation:[
+    {from:'system',text:'[Reminder sent at 20:00 — no response after 2 hours]',delay:0},
+    {from:'received',text:'PILL PAL REMINDER: {{ user.first_name }}, did you take your Efavirenz 600mg? Reply 1 to confirm.',delay:800},
+    {from:'system',text:'[Still no response — escalating to caregiver]',delay:2500},
+    {from:'received',text:'PILL PAL ALERT (Caregiver): {{ user.first_name }} may have missed their 20:00 Efavirenz dose. Please check in with them.',delay:3500},
+  ],
+  info:[
+    {from:'sent',text:'INFO TENOFOVIR',delay:0},
+    {from:'received',text:'PILL PAL INFO — Tenofovir 300mg:\n• Treats HIV. Take once daily.\n• Can be taken with or without food.\n• Side effects: nausea, headache (usually improve).\n• Missed dose? Take ASAP unless near next dose.\nReply HELP for commands.',delay:1200},
+  ],
+  refill:[
+    {from:'system',text:'[Refill prediction — 5 days remaining]',delay:0},
+    {from:'received',text:'PILL PAL REFILL ALERT: {{ user.first_name }}, your Tenofovir supply runs out in ~5 days. Visit your clinic before then. Bring your yellow card.',delay:800},
+    {from:'sent',text:'REFILL',delay:2500},
+    {from:'received',text:'PILL PAL: Next refill due within 5 days. Clinic hours: Mon–Fri 08:00–16:30. Bring your patient yellow card.',delay:3500},
+  ]
+};
+
+let pendingTimeouts=[];
+function addBubble(from,text){
+  const wrap=document.getElementById('phone-messages');
+  const styles={
+    system:'padding:8px 12px;background:rgba(26,107,107,.15);border-radius:10px;font-size:.75rem;color:rgba(255,255,255,.5);text-align:center;border:1px solid rgba(26,107,107,.2);align-self:center;max-width:90%;',
+    received:'max-width:85%;padding:10px 14px;border-radius:18px 18px 18px 4px;background:#2C2C2E;color:white;font-size:.82rem;line-height:1.5;align-self:flex-start;white-space:pre-line;',
+    sent:'max-width:85%;padding:10px 14px;border-radius:18px 18px 4px 18px;background:var(--teal);color:white;font-size:.82rem;line-height:1.5;align-self:flex-end;',
+  };
+  const div=document.createElement('div');
+  div.style.cssText=styles[from]||styles.received;
+  div.style.animation='bubbleIn .3s ease';
+  div.textContent=text;
+  wrap.appendChild(div);
+  wrap.scrollTop=wrap.scrollHeight;
+}
+const style=document.createElement('style');
+style.textContent='@keyframes bubbleIn{from{opacity:0;transform:scale(.9) translateY(4px)}to{opacity:1;transform:scale(1) translateY(0)}}';
+document.head.appendChild(style);
+
+function loadScenario(key,btn){
+  pendingTimeouts.forEach(clearTimeout);pendingTimeouts=[];
+  document.querySelectorAll('.scenario-btn').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  const wrap=document.getElementById('phone-messages');
+  wrap.innerHTML='<div style="padding:8px 12px;background:rgba(26,107,107,.15);border-radius:10px;font-size:.75rem;color:rgba(255,255,255,.5);text-align:center;border:1px solid rgba(26,107,107,.2);">Today</div>';
+  scenarios[key].forEach(msg=>{
+    const t=setTimeout(()=>addBubble(msg.from,msg.text),msg.delay);
+    pendingTimeouts.push(t);
+  });
+}
+
+function sendSMS(){
+  const input=document.getElementById('sms-input');
+  const val=input.value.trim();if(!val)return;
+  addBubble('sent',val);input.value='';
+  fetch("{% url 'api_sms_respond' %}",{
+    method:'POST',
+    headers:{'Content-Type':'application/json','X-CSRFToken':CSRF},
+    body:JSON.stringify({message:val})
+  }).then(r=>r.json()).then(data=>{
+    setTimeout(()=>addBubble('received',data.reply||'PILL PAL: Message received.'),900);
+  }).catch(()=>{
+    setTimeout(()=>addBubble('received','PILL PAL: Message not recognised. Reply HELP for commands.'),900);
+  });
+}
+
+// Update clock
+function updateClock(){const now=new Date();document.getElementById('phone-time').textContent=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');}
+updateClock();setInterval(updateClock,30000);
+setTimeout(()=>loadScenario('reminder',document.querySelector('.scenario-btn')),500);
+</script>
+<style>
+.scenario-btn{width:100%;text-align:left;padding:14px 16px;background:var(--cream);border:1.5px solid var(--ink-10);border-radius:var(--radius-sm);margin-bottom:10px;cursor:pointer;transition:all .2s;font-family:'DM Sans',sans-serif;}
+.scenario-btn:hover{border-color:var(--teal);background:var(--teal-pale);}
+.scenario-btn.active{border-color:var(--teal);background:var(--teal-pale);}
+</style>
+{% endblock %}

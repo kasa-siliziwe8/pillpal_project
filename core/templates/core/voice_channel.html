@@ -1,0 +1,109 @@
+{% extends 'core/base.html' %}
+{% block title %}Voice Channel{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Voice Call Channel</h1>
+  <p class="subtitle">Pill Pal works on any phone — no data or app required</p>
+</div>
+<div style="display:grid;grid-template-columns:360px 1fr;gap:28px;align-items:start;">
+  <div>
+    <div style="background:#1A1A1A;border-radius:32px;padding:14px;box-shadow:0 20px 60px rgba(0,0,0,.3),inset 0 0 0 1px rgba(255,255,255,.1);position:sticky;top:84px;">
+      <div style="background:linear-gradient(160deg,#1C1C1E,#0F0F14);border-radius:22px;overflow:hidden;min-height:520px;display:flex;flex-direction:column;">
+        <div style="background:#1C1C1E;padding:14px 20px 10px;display:flex;justify-content:space-between;color:white;font-size:.75rem;font-weight:600;"><span id="voice-timer">0:00</span><span>📶 MTN 🔋</span></div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px;gap:16px;">
+          <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--teal),var(--teal-light));display:flex;align-items:center;justify-content:center;font-size:2rem;box-shadow:0 0 0 12px rgba(26,107,107,.1);" id="call-avatar">💊</div>
+          <div style="text-align:center;"><div style="color:white;font-size:1.1rem;font-weight:700;font-family:'Fraunces',serif;">Pill Pal</div><div style="color:rgba(255,255,255,.4);font-size:.8rem;">+27 60 000 1111</div></div>
+          <div id="voice-status" style="color:rgba(255,255,255,.7);font-size:.85rem;text-align:center;">Tap call to simulate reminder</div>
+          <div id="waveform" style="display:none;align-items:center;gap:3px;height:36px;">
+            {% for i in "123456789" %}<div class="wb" style="width:4px;border-radius:100px;background:var(--teal-light);animation:wave 1.2s ease-in-out infinite;animation-delay:{{ forloop.counter0 }}00ms;"></div>{% endfor %}
+          </div>
+        </div>
+        <div style="padding:0 20px 20px;">
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;">
+            {% for key in "123456789" %}<button class="dkey" onclick="pressKey('{{ key }}')"><span style="color:white;font-size:1.2rem;font-weight:600;display:block;">{{ key }}</span>{% if key == '1' %}<span style="color:rgba(255,255,255,.35);font-size:.55rem;text-transform:uppercase;letter-spacing:.04em;">Confirm</span>{% elif key == '2' %}<span style="color:rgba(255,255,255,.35);font-size:.55rem;text-transform:uppercase;letter-spacing:.04em;">Snooze</span>{% endif %}</button>{% endfor %}
+            <button class="dkey" onclick="pressKey('*')"><span style="color:white;font-size:1.2rem;font-weight:600;">*</span></button>
+            <button class="dkey" onclick="pressKey('0')"><span style="color:white;font-size:1.2rem;font-weight:600;display:block;">0</span><span style="color:rgba(255,255,255,.35);font-size:.55rem;text-transform:uppercase;letter-spacing:.04em;">Help</span></button>
+            <button class="dkey" onclick="pressKey('#')"><span style="color:white;font-size:1.2rem;font-weight:600;">#</span></button>
+          </div>
+          <div style="display:flex;gap:10px;justify-content:center;">
+            <button id="call-btn" onclick="startCall()" style="width:60px;height:60px;border-radius:50%;background:var(--green);border:none;cursor:pointer;font-size:1.6rem;box-shadow:0 4px 16px rgba(45,138,78,.4);transition:all .2s;">📞</button>
+            <button id="end-btn" onclick="endCall()" style="width:60px;height:60px;border-radius:50%;background:var(--red);border:none;cursor:pointer;font-size:1.6rem;box-shadow:0 4px 16px rgba(192,57,43,.4);display:none;transition:all .2s;">📵</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:20px;">
+    <div class="card">
+      <div class="flex-between mb-16"><div class="card-label" style="margin:0;">Call Transcript</div><span class="badge badge-teal" id="call-badge">Ready</span></div>
+      <div id="call-log" style="min-height:160px;max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;">
+        <div style="padding:12px;background:var(--cream);border-radius:8px;font-size:.83rem;color:var(--ink-60);text-align:center;">Press the green call button to simulate a voice reminder</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label mb-16">How the Voice Channel Works</div>
+      {% for n,title,desc in steps %}
+      <div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:14px;">
+        <div style="width:32px;height:32px;border-radius:50%;background:var(--teal-pale);color:var(--teal);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;">{{ n }}</div>
+        <div><div style="font-weight:600;font-size:.9rem;">{{ title }}</div><div class="text-sm">{{ desc }}</div></div>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="card" style="background:var(--teal-pale);border-color:var(--teal);">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><span style="font-size:1.3rem;">🌍</span><div class="card-label" style="margin:0;color:var(--teal);">Language Support</div></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <span class="badge badge-teal">English</span><span class="badge badge-teal">isiZulu</span><span class="badge badge-teal">isiXhosa</span><span class="badge badge-teal">Sesotho</span><span class="badge badge-teal">Setswana</span><span class="badge badge-amber">+ 6 planned</span>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+let active=false,timerInterval,secs=0;
+function startCall(){
+  active=true;secs=0;
+  document.getElementById('call-btn').style.display='none';
+  document.getElementById('end-btn').style.display='flex';
+  document.getElementById('voice-status').textContent='Connecting…';
+  document.getElementById('waveform').style.display='flex';
+  document.getElementById('call-badge').textContent='Live';
+  timerInterval=setInterval(()=>{secs++;const m=Math.floor(secs/60),s=secs%60;document.getElementById('voice-timer').textContent=m+':'+(s<10?'0':'')+s;},1000);
+  setTimeout(()=>{
+    document.getElementById('voice-status').textContent='Connected — Playing reminder…';
+    addLog('🔊 "Hello {{ user.first_name }}, this is Pill Pal. It is time to take your Efavirenz 600mg at bedtime on an empty stomach. Press 1 to confirm, press 2 to be reminded in 30 minutes, or press 0 for help."');
+  },1200);
+}
+function endCall(){
+  active=false;clearInterval(timerInterval);
+  document.getElementById('call-btn').style.display='flex';
+  document.getElementById('end-btn').style.display='none';
+  document.getElementById('voice-status').textContent='Call ended';
+  document.getElementById('waveform').style.display='none';
+  document.getElementById('call-badge').textContent='Ended';
+  showToast('📞 Call ended');
+}
+function pressKey(k){
+  if(!active)return;
+  addLog('You pressed: '+k);
+  if(k==='1'){setTimeout(()=>{addLog('🔊 "Thank you! Dose confirmed. Goodbye!"');setTimeout(endCall,1800);},400);}
+  else if(k==='2'){addLog('🔊 "You will be reminded in 30 minutes. Goodbye!"');setTimeout(endCall,1800);}
+  else if(k==='0'){addLog('🔊 "For help, please visit your clinic or use the Pill Pal app. Goodbye!"');setTimeout(endCall,1800);}
+  else{addLog('🔊 "I did not understand that. Press 1 to confirm, 2 to snooze, or 0 for help."');}
+}
+function addLog(text){
+  const log=document.getElementById('call-log');
+  const div=document.createElement('div');
+  div.style.cssText='padding:10px 14px;background:rgba(26,107,107,.08);border-radius:8px;font-size:.83rem;line-height:1.5;color:var(--ink);border-left:3px solid var(--teal);';
+  div.textContent=text;log.appendChild(div);log.scrollTop=log.scrollHeight;
+}
+</script>
+<style>
+.dkey{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 6px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:12px;cursor:pointer;transition:all .15s;gap:2px;}
+.dkey:hover{background:rgba(255,255,255,.12);transform:scale(1.05);}
+.dkey:active{background:rgba(255,255,255,.18);transform:scale(.95);}
+.wb{width:4px;border-radius:100px;background:var(--teal-light);}
+@keyframes wave{0%,100%{transform:scaleY(.4);opacity:.5}50%{transform:scaleY(1);opacity:1}}
+</style>
+{% endblock %}

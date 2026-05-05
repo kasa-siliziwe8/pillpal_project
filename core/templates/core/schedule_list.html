@@ -1,0 +1,119 @@
+{% extends 'core/base.html' %}
+{% block title %}My Schedules{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="header-row">
+    <div>
+      <h1>Medication Schedules</h1>
+      <p class="subtitle">Manage your active and paused medication schedules</p>
+    </div>
+    <button class="btn btn-primary" onclick="document.getElementById('add-modal').style.display='flex'">+ Add Medication</button>
+  </div>
+</div>
+
+{% if schedules %}
+<div style="display:flex;flex-direction:column;gap:14px;">
+  {% for s in schedules %}
+  <div class="card" style="display:flex;align-items:center;gap:18px;padding:18px 24px;{% if not s.is_active %}opacity:.6;{% endif %}">
+    <div style="width:48px;height:24px;border-radius:100px;background:linear-gradient(135deg,{{ s.medication.pill_color|default:'#2A9090,#1A6B6B' }});flex-shrink:0;position:relative;">
+      <div style="position:absolute;left:50%;top:0;bottom:0;width:1.5px;background:rgba(255,255,255,.4);transform:translateX(-50%);"></div>
+    </div>
+    <div style="flex:1;">
+      <div style="font-weight:700;font-size:1rem;">{{ s.medication.generic_name }} {{ s.dosage }}</div>
+      <div class="text-sm">{{ s.get_frequency_display }} · {{ s.scheduled_time_1|time:"H:i" }}{% if s.scheduled_time_2 %} &amp; {{ s.scheduled_time_2|time:"H:i" }}{% endif %}</div>
+      {% if s.special_instructions %}<div class="text-xs mt-4" style="color:var(--amber);">⚠️ {{ s.special_instructions }}</div>{% endif %}
+      <div class="text-xs mt-4">Started {{ s.start_date|date:"d M Y" }} · Supply: {{ s.supply_days }} days</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
+      {% if s.is_active %}
+        <span class="badge badge-green badge-dot">Active</span>
+      {% else %}
+        <span class="badge badge-amber">Paused</span>
+      {% endif %}
+      <div style="display:flex;gap:8px;">
+        <form method="post" action="{% url 'schedule_toggle' s.pk %}" style="display:inline;">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-ghost btn-sm">
+            {% if s.is_active %}⏸ Pause{% else %}▶ Resume{% endif %}
+          </button>
+        </form>
+        <form method="post" action="{% url 'schedule_delete' s.pk %}"
+              onsubmit="return confirm('Remove {{ s.medication.generic_name }} schedule? This cannot be undone.')">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-sm" style="background:var(--red-light);color:var(--red);border:1px solid var(--red);">🗑</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card" style="text-align:center;padding:64px 32px;">
+  <div style="font-size:3rem;margin-bottom:16px;">💊</div>
+  <div style="font-family:'Fraunces',serif;font-size:1.3rem;font-weight:600;margin-bottom:8px;">No schedules yet</div>
+  <p class="text-sm" style="margin-bottom:20px;">Add your first medication schedule or ask your clinic to set it up.</p>
+  <button class="btn btn-primary" onclick="document.getElementById('add-modal').style.display='flex'">+ Add Medication</button>
+</div>
+{% endif %}
+
+<div class="emergency-banner">
+  ⚠️ Always consult your healthcare provider before adding or stopping medications. Do not self-prescribe.
+</div>
+
+<!-- Add schedule modal -->
+<div id="add-modal" style="display:none;position:fixed;inset:0;background:rgba(26,26,46,.6);backdrop-filter:blur(6px);z-index:200;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:white;border-radius:24px;width:100%;max-width:500px;padding:36px;box-shadow:0 8px 48px rgba(0,0,0,.2);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+      <h2 style="font-family:'Fraunces',serif;font-size:1.4rem;font-weight:700;">Add Medication Schedule</h2>
+      <button onclick="document.getElementById('add-modal').style.display='none'" style="background:none;border:none;cursor:pointer;font-size:1.3rem;color:var(--ink-30);">✕</button>
+    </div>
+    <form method="post" action="{% url 'schedule_add' %}">
+      {% csrf_token %}
+      <div class="form-group">
+        <label class="form-label">Medication</label>
+        <select class="form-select" name="medication" required>
+          <option value="">— Select medication —</option>
+          {% for m in all_meds %}<option value="{{ m.pk }}">{{ m.generic_name }}{% if m.brand_name %} ({{ m.brand_name }}){% endif %}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Dosage</label>
+          <input class="form-input" type="text" name="dosage" placeholder="e.g. 300mg" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Frequency</label>
+          <select class="form-select" name="frequency">
+            <option value="once_daily">Once Daily</option>
+            <option value="twice_daily">Twice Daily</option>
+            <option value="three_daily">Three Times Daily</option>
+            <option value="weekly">Weekly</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">First Dose Time</label>
+          <input class="form-input" type="time" name="scheduled_time_1" value="08:00" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Second Dose Time (if applicable)</label>
+          <input class="form-input" type="time" name="scheduled_time_2">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Special Instructions (optional)</label>
+        <input class="form-input" type="text" name="special_instructions" placeholder="e.g. Take with food">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Supply Duration (days)</label>
+        <input class="form-input" type="number" name="supply_days" value="30" min="1" max="365">
+      </div>
+      <div style="display:flex;gap:12px;margin-top:8px;">
+        <button type="submit" class="btn btn-primary">Add Schedule</button>
+        <button type="button" class="btn btn-ghost" onclick="document.getElementById('add-modal').style.display='none'">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,135 @@
+{% extends 'core/base.html' %}
+{% block title %}Reports{% endblock %}
+{% block extra_head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="header-row">
+    <div><h1>Adherence Reports</h1><p class="subtitle">Your 30-day medication history and trends</p></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-ghost btn-sm" onclick="showToast('📄 Generating PDF report…')">📄 Export PDF</button>
+      <button class="btn btn-primary btn-sm" onclick="showToast('🔗 Report link copied!')">🔗 Share</button>
+    </div>
+  </div>
+</div>
+
+<div class="grid-4 mb-20">
+  <div class="card"><div class="card-label">30-Day Rate</div><div class="card-value teal">{{ adherence_pct }}%</div><div class="text-xs mt-4" style="color:var(--green);">Your adherence rate</div></div>
+  <div class="card"><div class="card-label">Confirmed</div><div class="card-value green">{{ confirmed }}</div><div class="text-xs mt-4">of {{ total }} scheduled</div></div>
+  <div class="card"><div class="card-label">Missed</div><div class="card-value red">{{ missed }}</div><div class="text-xs mt-4">doses this month</div></div>
+  <div class="card"><div class="card-label">Current Streak</div><div class="card-value amber">{{ streak }} day{{ streak|pluralize }}</div><div class="text-xs mt-4">🔥 Keep going!</div></div>
+</div>
+
+<div class="grid-2 mb-20">
+  <div class="card">
+    <div class="flex-between mb-16">
+      <div><div class="card-label" style="margin:0;">Daily Adherence Trend</div><div class="text-xs mt-4">Last 30 days</div></div>
+      <span class="badge badge-teal">30 days</span>
+    </div>
+    <canvas id="adherence-chart" height="180"></canvas>
+  </div>
+  <div class="card">
+    <div class="card-label" style="margin-bottom:16px;">Monthly Overview</div>
+    <div style="display:flex;align-items:center;gap:20px;">
+      <canvas id="doughnut-chart" width="160" height="160" style="flex-shrink:0;max-width:160px;"></canvas>
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+          <div style="width:12px;height:12px;border-radius:3px;background:var(--green);"></div>
+          <div><div style="font-weight:600;font-size:.9rem;">{{ confirmed }} Confirmed</div><div class="text-xs">{{ adherence_pct }}% of doses</div></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:12px;height:12px;border-radius:3px;background:var(--red);"></div>
+          <div><div style="font-weight:600;font-size:.9rem;">{{ missed }} Missed</div><div class="text-xs">{{ 100|add:"-"|add:adherence_pct }}% of doses</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-label mb-16">Per-Medication Breakdown</div>
+  <table class="data-table">
+    <thead><tr><th>Medication</th><th>Scheduled</th><th>Confirmed</th><th>Missed</th><th>Rate</th><th>Trend</th></tr></thead>
+    <tbody>
+      {% for ms in med_stats %}
+      <tr>
+        <td><div style="font-weight:600;">{{ ms.schedule.medication.generic_name }} {{ ms.schedule.dosage }}</div><div class="text-xs">{{ ms.schedule.get_frequency_display }}</div></td>
+        <td>{{ ms.total }}</td>
+        <td style="color:var(--green);font-weight:600;">{{ ms.confirmed }}</td>
+        <td style="color:var(--red);">{{ ms.missed }}</td>
+        <td>
+          <div class="font-display bold" style="color:{% if ms.pct >= 85 %}var(--green){% elif ms.pct >= 70 %}var(--amber){% else %}var(--red){% endif %};">{{ ms.pct }}%</div>
+          <div class="mini-bar" style="width:80px;"><div class="mini-bar-fill" style="width:{{ ms.pct }}%;background:{% if ms.pct >= 85 %}var(--green){% elif ms.pct >= 70 %}var(--amber){% else %}var(--red){% endif %};"></div></div>
+        </td>
+        <td>
+          {% if ms.trend == 'improving' %}<span class="badge badge-green">↑ Improving</span>
+          {% elif ms.trend == 'at_risk' %}<span class="badge badge-red">↓ At risk</span>
+          {% else %}<span class="badge badge-amber">→ Stable</span>{% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="6" style="text-align:center;color:var(--ink-60);padding:24px;">No medication data yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="emergency-banner">
+  ⚠️ Share this report with your healthcare provider at your next clinic visit.
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const dailyData = {{ daily_data|safe }};
+const labels = dailyData.map(d => d.date);
+const values = dailyData.map(d => d.pct);
+
+new Chart(document.getElementById('adherence-chart'), {
+  type: 'line',
+  data: {
+    labels,
+    datasets: [{
+      label: 'Adherence %',
+      data: values,
+      borderColor: 'var(--teal)',
+      backgroundColor: 'rgba(26,107,107,0.08)',
+      borderWidth: 2.5,
+      tension: 0.4,
+      fill: true,
+      pointRadius: 0,
+      pointHoverRadius: 5,
+      pointHoverBackgroundColor: 'var(--teal)',
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      annotation: {}
+    },
+    scales: {
+      y: { min: 0, max: 100, grid: { color: 'rgba(26,26,46,0.05)' }, ticks: { callback: v => v+'%', font: { family: 'DM Sans' } } },
+      x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 6, font: { family: 'DM Sans', size: 10 } } }
+    }
+  }
+});
+
+new Chart(document.getElementById('doughnut-chart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Confirmed', 'Missed'],
+    datasets: [{ data: [{{ confirmed }}, {{ missed }}], backgroundColor: ['#2D8A4E', '#C0392B'], borderWidth: 0, hoverOffset: 4 }]
+  },
+  options: {
+    responsive: false,
+    cutout: '65%',
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: ctx => ctx.label + ': ' + ctx.raw } }
+    }
+  }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,87 @@
+{% extends 'core/base.html' %}
+{% block title %}Linked Caregivers{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Linked Caregivers</h1>
+  <p class="subtitle">People who can see your adherence and receive alerts on your behalf</p>
+</div>
+
+<div class="grid-2" style="align-items:start;gap:24px;">
+  <!-- Existing links -->
+  <div>
+    <div class="card-label mb-16">Your Caregivers ({{ links.count }})</div>
+    {% if links %}
+      {% for link in links %}
+      <div class="card" style="display:flex;align-items:center;gap:16px;margin-bottom:12px;padding:16px 20px;">
+        <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--teal),var(--teal-light));display:flex;align-items:center;justify-content:center;color:white;font-family:'Fraunces',serif;font-weight:700;flex-shrink:0;">{{ link.caregiver.initials }}</div>
+        <div style="flex:1;">
+          <div style="font-weight:700;">{{ link.caregiver.get_full_name|default:link.caregiver.username }}</div>
+          <div class="text-sm">{{ link.caregiver.phone_number }}</div>
+          <div class="text-xs mt-4">Linked {{ link.linked_date|date:"d M Y" }} · {% if link.approved %}<span style="color:var(--green);">Approved</span>{% else %}<span style="color:var(--amber);">Pending</span>{% endif %}</div>
+        </div>
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="remove">
+          <input type="hidden" name="link_id" value="{{ link.pk }}">
+          <button type="submit" class="btn btn-sm" style="background:var(--red-light);color:var(--red);border:1px solid var(--red);"
+                  onclick="return confirm('Remove {{ link.caregiver.get_full_name }} as your caregiver?')">Remove</button>
+        </form>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="card" style="text-align:center;padding:36px;">
+        <div style="font-size:2rem;margin-bottom:10px;">👥</div>
+        <div style="font-weight:600;margin-bottom:6px;">No caregivers linked</div>
+        <p class="text-sm">Add a caregiver to keep someone informed about your adherence.</p>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Add caregiver -->
+  <div>
+    <div class="card">
+      <div class="card-label mb-16">Link a New Caregiver</div>
+      <p class="text-sm" style="margin-bottom:16px;">Your caregiver must already have a Pill Pal account with the <strong>Caregiver</strong> role. Enter their registered phone number below.</p>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="invite">
+        <div class="form-group">
+          <label class="form-label">Caregiver's Phone Number</label>
+          <input class="form-input" type="tel" name="caregiver_phone" placeholder="+27 83 000 0000" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Link Caregiver</button>
+      </form>
+      <div class="divider"></div>
+      <div style="background:var(--teal-pale);border-radius:var(--radius-sm);padding:14px;">
+        <div style="font-weight:600;font-size:.88rem;color:var(--teal);margin-bottom:6px;">🔒 Privacy Protection</div>
+        <div class="text-sm">Caregivers can only see your adherence percentages and missed-dose alerts. They cannot see your diagnosis, medication names, or personal health records.</div>
+      </div>
+    </div>
+
+    <div class="card mt-24">
+      <div class="card-label mb-12">What Caregivers Can See</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;align-items:center;gap:10px;font-size:.88rem;">
+          <span style="color:var(--green);font-size:1rem;">✓</span> Your weekly adherence percentage
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;font-size:.88rem;">
+          <span style="color:var(--green);font-size:1rem;">✓</span> Missed dose alerts (time only, no drug name)
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;font-size:.88rem;">
+          <span style="color:var(--green);font-size:1rem;">✓</span> Last confirmed dose timestamp
+        </div>
+        <div class="divider"></div>
+        <div style="display:flex;align-items:center;gap:10px;font-size:.88rem;">
+          <span style="color:var(--red);font-size:1rem;">✗</span> Your diagnosis or medical conditions
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;font-size:.88rem;">
+          <span style="color:var(--red);font-size:1rem;">✗</span> Your specific medication names
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;font-size:.88rem;">
+          <span style="color:var(--red);font-size:1rem;">✗</span> Personal health records or lab results
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

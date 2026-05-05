@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}Pill Pal{% endblock %} — Medication Adherence</title>
+{% load static %}
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,600;9..144,700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --cream:#FAF7F2;--white:#FFFFFF;
+  --terracotta:#C0572B;--terracotta-light:#E8785A;--ochre:#D4952A;
+  --teal:#1A6B6B;--teal-light:#2A9090;--teal-pale:#E0F2F2;
+  --green:#2D8A4E;--green-light:#E8F7EE;
+  --amber:#D4952A;--amber-light:#FEF3DC;
+  --red:#C0392B;--red-light:#FDECEA;
+  --ink:#1A1A2E;--ink-60:#1A1A2E99;--ink-30:#1A1A2E4D;--ink-10:#1A1A2E1A;
+  --shadow-sm:0 2px 8px rgba(26,26,46,.06);--shadow-md:0 4px 24px rgba(26,26,46,.10);--shadow-lg:0 8px 48px rgba(26,26,46,.14);
+  --radius:16px;--radius-sm:10px;--radius-pill:100px;
+}
+html{font-size:16px;scroll-behavior:smooth}
+body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--ink);min-height:100vh;overflow-x:hidden}
+
+/* TOPBAR */
+.topbar{position:fixed;top:0;left:0;right:0;z-index:100;background:var(--white);border-bottom:1px solid var(--ink-10);display:flex;align-items:center;justify-content:space-between;padding:0 32px;height:64px;box-shadow:var(--shadow-sm)}
+.logo{display:flex;align-items:center;gap:10px;font-family:'Fraunces',serif;font-size:1.5rem;font-weight:700;color:var(--teal);letter-spacing:-.5px;text-decoration:none}
+.logo-pill{width:36px;height:20px;background:linear-gradient(135deg,var(--terracotta) 50%,var(--ochre) 50%);border-radius:100px;display:inline-block;box-shadow:0 2px 8px rgba(192,87,43,.3);position:relative}
+.logo-pill::after{content:'';position:absolute;left:50%;top:0;bottom:0;width:1.5px;background:rgba(255,255,255,.5);transform:translateX(-50%)}
+.topbar-right{display:flex;align-items:center;gap:14px}
+.nav-link{font-size:.85rem;font-weight:500;color:var(--ink-60);text-decoration:none;padding:6px 12px;border-radius:var(--radius-pill);transition:all .15s}
+.nav-link:hover,.nav-link.active{background:var(--teal-pale);color:var(--teal)}
+.avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--terracotta),var(--ochre));display:flex;align-items:center;justify-content:center;color:white;font-weight:600;font-size:.85rem;cursor:pointer;text-decoration:none;flex-shrink:0}
+.role-badge{font-size:.7rem;font-weight:600;padding:3px 8px;border-radius:var(--radius-pill);background:var(--teal-pale);color:var(--teal);letter-spacing:.04em}
+
+/* LAYOUT */
+.app-layout{display:flex;margin-top:64px;min-height:calc(100vh - 64px)}
+.sidebar{width:220px;flex-shrink:0;background:var(--white);border-right:1px solid var(--ink-10);padding:24px 16px;position:fixed;top:64px;left:0;bottom:0;overflow-y:auto;z-index:50}
+.nav-section-label{font-size:.7rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-30);padding:0 12px;margin:20px 0 8px}
+.nav-section-label:first-child{margin-top:0}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--radius-sm);cursor:pointer;transition:all .15s;font-size:.9rem;font-weight:500;color:var(--ink-60);margin-bottom:2px;border:none;background:none;width:100%;text-align:left;text-decoration:none}
+.nav-item:hover{background:var(--cream);color:var(--ink)}
+.nav-item.active{background:var(--teal-pale);color:var(--teal);font-weight:600}
+.nav-icon{font-size:1.1rem;width:20px;text-align:center}
+.nav-badge{margin-left:auto;background:var(--red);color:white;font-size:.65rem;font-weight:700;padding:2px 6px;border-radius:100px;min-width:18px;text-align:center}
+.main-content{margin-left:220px;flex:1;padding:32px;max-width:1200px}
+
+/* CARDS */
+.card{background:var(--white);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow-sm);border:1px solid var(--ink-10)}
+.card-label{font-size:.75rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-30);margin-bottom:8px}
+.card-value{font-family:'Fraunces',serif;font-size:2.2rem;font-weight:700;line-height:1;color:var(--ink)}
+.card-value.teal{color:var(--teal)}.card-value.green{color:var(--green)}.card-value.red{color:var(--red)}.card-value.amber{color:var(--amber)}
+
+/* GRID */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
+.grid-main{display:grid;grid-template-columns:1fr 340px;gap:24px;align-items:start}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:var(--radius-pill);font-family:'DM Sans',sans-serif;font-size:.9rem;font-weight:600;cursor:pointer;border:none;transition:all .2s;text-decoration:none}
+.btn-primary{background:var(--teal);color:white;box-shadow:0 4px 16px rgba(26,107,107,.25)}
+.btn-primary:hover{background:var(--teal-light);transform:translateY(-1px)}
+.btn-ghost{background:transparent;color:var(--teal);border:1.5px solid var(--teal)}
+.btn-ghost:hover{background:var(--teal-pale)}
+.btn-sm{padding:8px 16px;font-size:.8rem}
+.btn-danger{background:var(--red);color:white}
+.btn-confirm{background:var(--green);color:white;width:100%;justify-content:center;padding:16px 24px;font-size:1rem;border-radius:var(--radius-sm);box-shadow:0 4px 16px rgba(45,138,78,.3)}
+.btn-confirm:hover{background:#3AA562;transform:translateY(-1px)}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:var(--radius-pill);font-size:.75rem;font-weight:600}
+.badge-green{background:var(--green-light);color:var(--green)}
+.badge-red{background:var(--red-light);color:var(--red)}
+.badge-amber{background:var(--amber-light);color:var(--amber)}
+.badge-teal{background:var(--teal-pale);color:var(--teal)}
+.badge-dot::before{content:'●';font-size:.5rem}
+
+/* STATUS BAR */
+.action-card{background:linear-gradient(135deg,var(--teal) 0%,var(--teal-light) 100%);border-radius:var(--radius);padding:24px;color:white;position:relative;overflow:hidden}
+.action-card::before{content:'';position:absolute;top:-40px;right:-40px;width:150px;height:150px;background:rgba(255,255,255,.08);border-radius:50%}
+.action-card::after{content:'';position:absolute;bottom:-30px;right:20px;width:100px;height:100px;background:rgba(255,255,255,.05);border-radius:50%}
+.ac-label{font-size:.75rem;font-weight:600;opacity:.7;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px}
+.ac-title{font-family:'Fraunces',serif;font-size:1.4rem;font-weight:600;margin-bottom:2px}
+.ac-sub{font-size:.85rem;opacity:.8;margin-bottom:20px}
+.btn-confirm-white{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;border-radius:var(--radius-sm);background:white;color:var(--green);font-family:'DM Sans',sans-serif;font-weight:700;font-size:.95rem;border:none;cursor:pointer;transition:all .2s;position:relative;z-index:1}
+.btn-confirm-white:hover{background:var(--green-light)}
+
+/* MISC */
+.page-header{margin-bottom:28px}
+.page-header h1{font-family:'Fraunces',serif;font-size:2rem;font-weight:600;color:var(--ink);letter-spacing:-.5px;line-height:1.2}
+.page-header .subtitle{color:var(--ink-60);margin-top:4px;font-size:.95rem}
+.header-row{display:flex;align-items:flex-end;justify-content:space-between}
+.divider{height:1px;background:var(--ink-10);margin:20px 0}
+.flex-between{display:flex;align-items:center;justify-content:space-between}
+.flex-center{display:flex;align-items:center}
+.gap-8{gap:8px}.gap-12{gap:12px}
+.mt-4{margin-top:4px}.mt-8{margin-top:8px}.mt-16{margin-top:16px}.mt-24{margin-top:24px}
+.mb-16{margin-bottom:16px}.mb-20{margin-bottom:20px}
+.text-sm{font-size:.82rem;color:var(--ink-60)}.text-xs{font-size:.75rem;color:var(--ink-30)}
+.font-display{font-family:'Fraunces',serif}.bold{font-weight:700}
+
+/* ALERTS */
+.alert-banner{background:linear-gradient(135deg,var(--red),#E74C3C);border-radius:var(--radius);padding:16px 20px;display:flex;align-items:center;gap:14px;color:white;margin-bottom:24px;box-shadow:0 4px 16px rgba(192,57,43,.3)}
+.emergency-banner{background:var(--amber-light);border:1px solid var(--amber);border-radius:var(--radius-sm);padding:10px 16px;display:flex;align-items:center;gap:10px;font-size:.8rem;color:var(--amber);margin-top:24px}
+
+/* TABLES */
+.data-table{width:100%;border-collapse:separate;border-spacing:0}
+.data-table th{font-size:.75rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-30);padding:12px 16px;text-align:left;background:var(--cream);border-bottom:1px solid var(--ink-10)}
+.data-table td{padding:14px 16px;font-size:.88rem;border-bottom:1px solid var(--ink-10);background:var(--white);vertical-align:middle}
+.data-table tr:last-child td{border-bottom:none}
+.data-table tr:hover td{background:var(--cream)}
+
+/* MINI BAR */
+.mini-bar{height:6px;border-radius:100px;background:var(--ink-10);margin-top:4px;overflow:hidden}
+.mini-bar-fill{height:100%;border-radius:100px}
+
+/* MED ITEMS */
+.med-item{display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--ink-10)}
+.med-item:last-child{border-bottom:none;padding-bottom:0}
+.med-item:first-child{padding-top:0}
+.med-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:2px}
+.med-name{font-weight:600;font-size:.95rem}
+.med-detail{font-size:.8rem;color:var(--ink-60);margin-top:2px}
+
+/* CAL STRIP */
+.cal-strip{display:flex;gap:8px;overflow-x:auto;padding:4px 0 8px}
+.cal-day{display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0;min-width:44px}
+.cal-day-label{font-size:.7rem;color:var(--ink-30);font-weight:500}
+.cal-day-num{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:600}
+.cal-day.confirmed .cal-day-num{background:var(--green);color:white}
+.cal-day.missed .cal-day-num{background:var(--red);color:white}
+.cal-day.upcoming .cal-day-num{background:var(--ink-10);color:var(--ink-60)}
+.cal-day.today .cal-day-num{background:var(--teal);color:white;box-shadow:0 0 0 3px rgba(26,107,107,.2)}
+
+/* PATIENT CARD */
+.patient-card{background:var(--white);border-radius:var(--radius);padding:20px 24px;border:1px solid var(--ink-10);box-shadow:var(--shadow-sm);display:flex;align-items:center;gap:18px;transition:box-shadow .2s;margin-bottom:14px}
+.patient-card:hover{box-shadow:var(--shadow-md)}
+.patient-card.missed{border-left:4px solid var(--red)}
+.patient-card.ok{border-left:4px solid var(--green)}
+.patient-card.warn{border-left:4px solid var(--amber)}
+.patient-avatar-lg{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Fraunces',serif;font-size:1.1rem;font-weight:700;flex-shrink:0;color:white}
+
+/* TOGGLE */
+.toggle{width:44px;height:24px;border-radius:100px;background:var(--ink-10);position:relative;cursor:pointer;transition:background .25s;flex-shrink:0;display:inline-block}
+.toggle.on{background:var(--teal)}
+.toggle-knob{width:18px;height:18px;border-radius:50%;background:white;position:absolute;top:3px;left:3px;transition:left .25s;box-shadow:0 1px 4px rgba(0,0,0,.2)}
+.toggle.on .toggle-knob{left:23px}
+
+/* LIVE DOT */
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(45,138,78,.4)}50%{box-shadow:0 0 0 6px rgba(45,138,78,0)}}
+
+/* ACCORDION */
+.accordion-card{background:var(--white);border-radius:var(--radius);border:1px solid var(--ink-10);overflow:hidden;box-shadow:var(--shadow-sm)}
+.accordion-item{border-bottom:1px solid var(--ink-10)}
+.accordion-item:last-child{border-bottom:none}
+.accordion-trigger{width:100%;display:flex;align-items:center;justify-content:space-between;padding:18px 24px;background:none;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;font-size:.95rem;color:var(--ink);text-align:left;transition:background .15s}
+.accordion-trigger:hover{background:var(--cream)}
+.accordion-chevron{font-size:.8rem;color:var(--ink-30);transition:transform .25s}
+.accordion-trigger.open .accordion-chevron{transform:rotate(180deg)}
+.accordion-body{max-height:0;overflow:hidden;transition:max-height .35s ease,padding .2s;padding:0 24px}
+.accordion-body.open{max-height:600px;padding:0 24px 20px}
+.accordion-body p{font-size:.9rem;line-height:1.7;color:var(--ink-60)}
+
+/* FORMS */
+.form-group{margin-bottom:16px}
+.form-label{font-size:.78rem;font-weight:600;color:var(--ink-60);letter-spacing:.04em;display:block;margin-bottom:4px}
+.form-input{width:100%;padding:10px 14px;border-radius:var(--radius-sm);border:1.5px solid var(--ink-10);font-family:'DM Sans',sans-serif;font-size:.9rem;outline:none;color:var(--ink);transition:border-color .2s;background:white}
+.form-input:focus{border-color:var(--teal)}
+.form-select{width:100%;padding:10px 14px;border-radius:var(--radius-sm);border:1.5px solid var(--ink-10);font-family:'DM Sans',sans-serif;font-size:.9rem;outline:none;background:white;color:var(--ink)}
+
+/* MESSAGES */
+.messages{list-style:none;margin-bottom:16px}
+.messages li{padding:10px 16px;border-radius:var(--radius-sm);margin-bottom:8px;font-size:.88rem;font-weight:500}
+.messages .error{background:var(--red-light);color:var(--red);border:1px solid var(--red)}
+.messages .success{background:var(--green-light);color:var(--green);border:1px solid var(--green)}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--ink-10);border-radius:100px}
+::-webkit-scrollbar-thumb:hover{background:var(--ink-30)}
+
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.fade-in{animation:fadeIn .35s ease}
+
+@media(max-width:900px){
+  .sidebar{display:none}
+  .main-content{margin-left:0;padding:16px}
+  .grid-main{grid-template-columns:1fr}
+  .grid-4{grid-template-columns:1fr 1fr}
+  .grid-2{grid-template-columns:1fr}
+}
+</style>
+{% block extra_head %}{% endblock %}
+</head>
+<body>
+{% if user.is_authenticated %}
+<header class="topbar">
+  <a href="{% url 'landing' %}" class="logo"><span class="logo-pill"></span>Pill Pal</a>
+  <div class="topbar-right">
+    <a href="{% url 'dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">Dashboard</a>
+    {% if user.role == 'patient' %}
+    <a href="{% url 'medications' %}" class="nav-link {% if request.resolver_match.url_name == 'medications' %}active{% endif %}">Medications</a>
+    <a href="{% url 'reports' %}" class="nav-link {% if request.resolver_match.url_name == 'reports' %}active{% endif %}">Reports</a>
+    {% endif %}
+    <span class="role-badge">{{ user.get_role_display }}</span>
+    <a href="{% url 'settings' %}" class="avatar" title="{{ user.get_full_name }}">{{ user.initials }}</a>
+  </div>
+</header>
+
+<div class="app-layout">
+  <aside class="sidebar">
+    {% if user.role == 'patient' %}
+    <div class="nav-section-label">My Health</div>
+    <a href="{% url 'dashboard' %}" class="nav-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}"><span class="nav-icon">🏠</span>Dashboard</a>
+    <a href="{% url 'medications' %}" class="nav-item {% if request.resolver_match.url_name in 'medications,medication_detail' %}active{% endif %}"><span class="nav-icon">💊</span>Medications</a>
+    <a href="{% url 'schedule_list' %}" class="nav-item {% if request.resolver_match.url_name == 'schedule_list' %}active{% endif %}"><span class="nav-icon">📅</span>My Schedules</a>
+    <a href="{% url 'dose_history' %}" class="nav-item {% if request.resolver_match.url_name == 'dose_history' %}active{% endif %}"><span class="nav-icon">📋</span>Dose History</a>
+    <a href="{% url 'reports' %}" class="nav-item {% if request.resolver_match.url_name == 'reports' %}active{% endif %}"><span class="nav-icon">📊</span>My Reports</a>
+    <div class="nav-section-label">Channels</div>
+    <a href="{% url 'sms_simulator' %}" class="nav-item {% if request.resolver_match.url_name == 'sms_simulator' %}active{% endif %}"><span class="nav-icon">📱</span>SMS Channel</a>
+    <a href="{% url 'voice_channel' %}" class="nav-item {% if request.resolver_match.url_name == 'voice_channel' %}active{% endif %}"><span class="nav-icon">📞</span>Voice Channel</a>
+    <div class="nav-section-label">Account</div>
+    <a href="{% url 'notifications' %}" class="nav-item {% if request.resolver_match.url_name == 'notifications' %}active{% endif %}"><span class="nav-icon">🔔</span>Notifications</a>
+    <a href="{% url 'caregiver_management' %}" class="nav-item {% if request.resolver_match.url_name == 'caregiver_management' %}active{% endif %}"><span class="nav-icon">👥</span>Caregivers</a>
+    <a href="{% url 'profile' %}" class="nav-item {% if request.resolver_match.url_name == 'profile' %}active{% endif %}"><span class="nav-icon">👤</span>Profile</a>
+    <a href="{% url 'settings' %}" class="nav-item {% if request.resolver_match.url_name == 'settings' %}active{% endif %}"><span class="nav-icon">⚙️</span>Settings</a>
+    {% elif user.role == 'caregiver' %}
+    <div class="nav-section-label">My Patients</div>
+    <a href="{% url 'dashboard' %}" class="nav-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}"><span class="nav-icon">👥</span>Patient Overview</a>
+    <a href="{% url 'reports' %}" class="nav-item {% if request.resolver_match.url_name == 'reports' %}active{% endif %}"><span class="nav-icon">📊</span>Reports</a>
+    <div class="nav-section-label">Account</div>
+    <a href="{% url 'notifications' %}" class="nav-item {% if request.resolver_match.url_name == 'notifications' %}active{% endif %}"><span class="nav-icon">🔔</span>Notifications</a>
+    <a href="{% url 'profile' %}" class="nav-item {% if request.resolver_match.url_name == 'profile' %}active{% endif %}"><span class="nav-icon">👤</span>Profile</a>
+    <a href="{% url 'settings' %}" class="nav-item {% if request.resolver_match.url_name == 'settings' %}active{% endif %}"><span class="nav-icon">⚙️</span>Settings</a>
+    {% elif user.role == 'clinic_admin' %}
+    <div class="nav-section-label">Clinic</div>
+    <a href="{% url 'dashboard' %}" class="nav-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}"><span class="nav-icon">🏥</span>Dashboard</a>
+    <div class="nav-section-label">Account</div>
+    <a href="{% url 'notifications' %}" class="nav-item {% if request.resolver_match.url_name == 'notifications' %}active{% endif %}"><span class="nav-icon">🔔</span>Notifications</a>
+    <a href="{% url 'profile' %}" class="nav-item {% if request.resolver_match.url_name == 'profile' %}active{% endif %}"><span class="nav-icon">👤</span>Profile</a>
+    <a href="{% url 'settings' %}" class="nav-item {% if request.resolver_match.url_name == 'settings' %}active{% endif %}"><span class="nav-icon">⚙️</span>Settings</a>
+    {% endif %}
+    <div class="nav-section-label" style="margin-top:auto"></div>
+    <a href="{% url 'logout' %}" class="nav-item" style="color:var(--red)"><span class="nav-icon">🚪</span>Log Out</a>
+  </aside>
+  <main class="main-content fade-in">
+    {% if messages %}
+    <ul class="messages">
+      {% for message in messages %}
+      <li class="{{ message.tags }}">{{ message }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+{% else %}
+{% block public_content %}{% endblock %}
+{% endif %}
+
+<div id="toast" style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--ink);color:white;padding:12px 24px;border-radius:var(--radius-pill);font-size:.88rem;font-weight:500;transition:transform .3s ease;z-index:999;box-shadow:var(--shadow-lg);white-space:nowrap;"></div>
+<script src="{% static 'js/pillpal.js' %}"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

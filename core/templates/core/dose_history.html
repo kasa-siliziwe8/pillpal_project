@@ -1,0 +1,75 @@
+{% extends 'core/base.html' %}
+{% block title %}Dose History{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="header-row">
+    <div>
+      <h1>Dose History</h1>
+      <p class="subtitle">Complete log of your medication confirmations</p>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <a href="{% url 'dose_history' %}" class="btn {% if not status_filter %}btn-primary{% else %}btn-ghost{% endif %} btn-sm">All</a>
+      <a href="{% url 'dose_history' %}?status=confirmed" class="btn {% if status_filter == 'confirmed' %}btn-primary{% else %}btn-ghost{% endif %} btn-sm">✓ Confirmed</a>
+      <a href="{% url 'dose_history' %}?status=missed" class="btn {% if status_filter == 'missed' %}btn-primary{% else %}btn-ghost{% endif %} btn-sm">✗ Missed</a>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  {% if logs %}
+  <div style="overflow-x:auto;">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Medication</th>
+          <th>Scheduled</th>
+          <th>Status</th>
+          <th>Confirmed At</th>
+          <th>Channel</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        <tr>
+          <td>
+            <div style="font-weight:600;">{{ log.schedule.medication.generic_name }}</div>
+            <div class="text-xs">{{ log.schedule.dosage }}</div>
+          </td>
+          <td>{{ log.scheduled_datetime|date:"d M Y" }}<br><span class="text-xs">{{ log.scheduled_datetime|time:"H:i" }}</span></td>
+          <td>
+            {% if log.status == 'confirmed' %}
+              <span class="badge badge-green">✓ Confirmed</span>
+            {% elif log.status == 'missed' %}
+              <span class="badge badge-red">✗ Missed</span>
+            {% else %}
+              <span class="badge badge-amber">Pending</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if log.confirmed_at %}
+              {{ log.confirmed_at|date:"d M" }} {{ log.confirmed_at|time:"H:i" }}
+            {% else %}
+              <span class="text-xs">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if log.confirmation_method %}
+              <span class="badge badge-teal">{{ log.get_confirmation_method_display }}</span>
+            {% else %}
+              <span class="text-xs">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div style="text-align:center;padding:48px 0;">
+    <div style="font-size:2.5rem;margin-bottom:12px;">📋</div>
+    <div style="font-family:'Fraunces',serif;font-size:1.2rem;font-weight:600;margin-bottom:8px;">No dose history yet</div>
+    <p class="text-sm">Your dose confirmations will appear here once you start confirming your medications.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

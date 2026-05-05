@@ -1,0 +1,20 @@
+{% extends 'core/base.html' %}
+{% block title %}Server Error{% endblock %}
+{% block content %}
+<div style="text-align:center;padding:80px 32px;">
+  <div style="font-family:'Fraunces',serif;font-size:6rem;font-weight:700;color:var(--ink-10);line-height:1;">500</div>
+  <div style="font-family:'Fraunces',serif;font-size:1.8rem;font-weight:600;color:var(--ink);margin-bottom:12px;">Something went wrong</div>
+  <p class="text-sm" style="max-width:400px;margin:0 auto 28px;">Our team has been notified. Please try again in a moment, or return to your dashboard.</p>
+  <a href="{% url 'dashboard' %}" class="btn btn-primary">Back to Dashboard</a>
+</div>
+{% endblock %}
+{% block public_content %}
+<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:32px;font-family:'DM Sans',sans-serif;">
+  <div>
+    <div style="font-family:'Fraunces',serif;font-size:6rem;font-weight:700;color:#E0F2F2;line-height:1;">500</div>
+    <div style="font-size:1.5rem;font-weight:700;margin-bottom:8px;">Server error</div>
+    <p style="color:#888;margin-bottom:24px;">Something went wrong on our end.</p>
+    <a href="/" style="background:#1A6B6B;color:white;padding:12px 28px;border-radius:100px;text-decoration:none;font-weight:600;">Go Home</a>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,271 @@
+{% extends 'core/base.html' %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+{% if user.role == 'patient' %}
+<div class="page-header">
+  <div class="header-row">
+    <div>
+      <h1>Good day, {{ user.first_name }}! 🌅</h1>
+      <p class="subtitle"><span class="live-dot"></span>&nbsp;
+        {{ confirmed_today }} of {{ total_today }} medication{{ total_today|pluralize }} taken today</p>
+    </div>
+    {% if adherence_pct >= 80 %}<span class="badge badge-green badge-dot">On Track</span>
+    {% elif adherence_pct >= 60 %}<span class="badge badge-amber badge-dot">Needs Attention</span>
+    {% else %}<span class="badge badge-red badge-dot">At Risk</span>{% endif %}
+  </div>
+</div>
+
+<div class="grid-main">
+  <div>
+    <!-- Adherence Ring -->
+    <div class="card mb-20">
+      <div class="card-label">30-Day Adherence</div>
+      <div style="display:flex;align-items:center;gap:28px;padding:8px 0;">
+        <svg width="110" height="110" viewBox="0 0 110 110" style="flex-shrink:0;">
+          <circle cx="55" cy="55" r="45" fill="none" stroke="#F0EBE3" stroke-width="10"/>
+          <circle cx="55" cy="55" r="45" fill="none" stroke="var(--teal)" stroke-width="10"
+            stroke-linecap="round"
+            stroke-dasharray="283"
+            stroke-dashoffset="{{ adherence_pct|default:0|floatformat:0 }}"
+            style="stroke-dashoffset:calc(283 - 283*{{ adherence_pct }}/100)"
+            transform="rotate(-90 55 55)"/>
+          <text x="55" y="50" text-anchor="middle" font-family="Fraunces,serif" font-size="20" font-weight="700" fill="#1A1A2E">{{ adherence_pct }}%</text>
+          <text x="55" y="66" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="10" fill="#888">adherence</text>
+        </svg>
+        <div>
+          <h2 style="font-family:'Fraunces',serif;font-size:1.15rem;font-weight:600;margin-bottom:6px;">
+            {% if adherence_pct >= 85 %}Strong progress this month!
+            {% elif adherence_pct >= 70 %}Good effort — keep going!
+            {% else %}Let's improve your adherence{% endif %}
+          </h2>
+          <p style="font-size:.875rem;color:var(--ink-60);line-height:1.5;">
+            You've confirmed {{ confirmed_30 }} of {{ confirmed_30|add:missed_30 }} scheduled doses this month.
+          </p>
+          <div style="margin-top:12px;display:flex;gap:16px;">
+            <div><div class="text-xs">Confirmed</div><div class="bold font-display" style="color:var(--green);font-size:1.2rem;">{{ confirmed_30 }}</div></div>
+            <div><div class="text-xs">Missed</div><div class="bold font-display" style="color:var(--red);font-size:1.2rem;">{{ missed_30 }}</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Calendar strip -->
+    <div class="card mb-20">
+      <div class="flex-between mb-16">
+        <div class="card-label" style="margin:0;">Weekly View</div>
+      </div>
+      <div class="cal-strip">
+        {% for day in cal_days %}
+        <div class="cal-day {{ day.status }}">
+          <div class="cal-day-label">{{ day.day_abbr }}</div>
+          <div class="cal-day-num">{{ day.date.day }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Today's meds -->
+    <div class="card">
+      <div class="flex-between mb-16">
+        <div class="card-label" style="margin:0;">Today's Medications</div>
+        <a href="{% url 'medications' %}" class="btn btn-ghost btn-sm">View All →</a>
+      </div>
+      {% if schedules %}
+        {% for s in schedules %}
+        <div class="med-item">
+          <div class="med-dot" style="background:{% if today_logs %}var(--green){% else %}var(--teal){% endif %}"></div>
+          <div style="flex:1;">
+            <div class="med-name">{{ s.medication.generic_name }} {{ s.dosage }}</div>
+            <div class="med-detail">{{ s.get_frequency_display }}
+              {% if s.special_instructions %} · {{ s.special_instructions|truncatechars:40 }}{% endif %}</div>
+          </div>
+          <span class="badge badge-teal">{{ s.scheduled_time_1|time:"H:i" }}</span>
+        </div>
+        {% endfor %}
+      {% else %}
+        <p class="text-sm" style="text-align:center;padding:20px 0;">No medications scheduled. Contact your clinic.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Right column -->
+  <div>
+    <!-- Action card -->
+    <div class="action-card mb-20">
+      {% if schedules %}
+        {% with schedules.0 as next_s %}
+        <div class="ac-label">Next Dose</div>
+        <div class="ac-title">{{ next_s.medication.generic_name }} {{ next_s.dosage }}</div>
+        <div class="ac-sub">Due at {{ next_s.scheduled_time_1|time:"H:i" }}
+          {% if next_s.special_instructions %} · {{ next_s.special_instructions|truncatechars:30 }}{% endif %}</div>
+        {% endwith %}
+        <button class="btn-confirm-white" id="confirm-btn" onclick="confirmDose(this)">
+          ✓ Confirm Taken
+        </button>
+      {% else %}
+        <div class="ac-label">All Done!</div>
+        <div class="ac-title">No doses pending 🎉</div>
+        <div class="ac-sub">Great job keeping up with your medication.</div>
+      {% endif %}
+    </div>
+
+    <!-- Channel -->
+    <div class="card mb-20">
+      <div class="card-label">Your Reminder Channel</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+        <a href="{% url 'sms_simulator' %}" class="btn {% if user.channel_preference == 'sms' %}btn-primary{% else %}btn-ghost{% endif %} btn-sm">📱 SMS</a>
+        <a href="{% url 'voice_channel' %}" class="btn {% if user.channel_preference == 'voice' %}btn-primary{% else %}btn-ghost{% endif %} btn-sm">📞 Voice</a>
+        <span class="btn {% if user.channel_preference == 'app' %}btn-primary{% else %}btn-ghost{% endif %} btn-sm">🔔 App</span>
+      </div>
+      <div class="text-sm mt-8">
+        Currently: <strong>{{ user.get_channel_preference_display }}</strong> in <strong>{{ user.get_language_preference_display }}</strong>
+      </div>
+    </div>
+
+    <!-- Quick links -->
+    <div class="card">
+      <div class="card-label">Quick Actions</div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
+        <a href="{% url 'medications' %}" class="btn btn-ghost btn-sm" style="justify-content:flex-start;">💊 View Medication Info</a>
+        <a href="{% url 'reports' %}" class="btn btn-ghost btn-sm" style="justify-content:flex-start;">📊 See My Reports</a>
+        <a href="{% url 'settings' %}" class="btn btn-ghost btn-sm" style="justify-content:flex-start;">⚙️ Update Settings</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="emergency-banner">
+  ⚠️ <strong>Important:</strong> Pill Pal is not an emergency service. For medical emergencies call <strong>10177</strong> immediately.
+</div>
+
+{% elif user.role == 'caregiver' %}
+<div class="page-header">
+  <h1>My Patients</h1>
+  <p class="subtitle">Adherence overview for your linked patients</p>
+</div>
+{% if patient_data %}
+  {% for pd in patient_data %}
+  {% with pd.patient as p %}
+  <div class="patient-card {% if pd.pct < 70 %}missed{% elif pd.pct >= 85 %}ok{% else %}warn{% endif %}">
+    <div class="patient-avatar-lg" style="background:linear-gradient(135deg,var(--teal),var(--teal-light));">{{ p.initials }}</div>
+    <div style="flex:1;">
+      <div style="font-weight:700;font-size:1rem;">{{ p.get_full_name }}</div>
+      <div class="text-sm">{{ p.get_channel_preference_display }} · {{ p.clinic }}</div>
+      {% if pd.missed_recent %}
+      <div class="text-xs mt-4">Last missed: {{ pd.missed_recent.schedule.medication.generic_name }} — {{ pd.missed_recent.scheduled_datetime|date:"d M H:i" }}</div>
+      {% endif %}
+      <div style="margin-top:8px;">
+        {% if pd.pct >= 85 %}<span class="badge badge-green badge-dot">On Track</span>
+        {% elif pd.pct >= 70 %}<span class="badge badge-amber badge-dot">Needs Attention</span>
+        {% else %}<span class="badge badge-red badge-dot">Missed Dose</span>{% endif %}
+      </div>
+    </div>
+    <div style="text-align:center;width:70px;">
+      <div class="font-display bold" style="font-size:1.6rem;color:{% if pd.pct >= 85 %}var(--green){% elif pd.pct >= 70 %}var(--amber){% else %}var(--red){% endif %}">{{ pd.pct }}%</div>
+      <div class="text-xs">7-day rate</div>
+      <div class="mini-bar mt-4"><div class="mini-bar-fill" style="width:{{ pd.pct }}%;background:{% if pd.pct >= 85 %}var(--green){% elif pd.pct >= 70 %}var(--amber){% else %}var(--red){% endif %};"></div></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <button class="btn btn-primary btn-sm" onclick="showToast('Opening report for {{ p.first_name }}…')">Report</button>
+      <button class="btn btn-ghost btn-sm" onclick="showToast('Encouragement SMS sent to {{ p.first_name }}')">Send SMS</button>
+    </div>
+  </div>
+  {% endwith %}
+  {% endfor %}
+{% else %}
+  <div class="card" style="text-align:center;padding:48px;">
+    <div style="font-size:2rem;margin-bottom:12px;">👥</div>
+    <div style="font-family:'Fraunces',serif;font-size:1.2rem;font-weight:600;margin-bottom:8px;">No linked patients yet</div>
+    <p class="text-sm">Ask your patient to link you via their Settings page.</p>
+  </div>
+{% endif %}
+
+{% elif user.role == 'clinic_admin' %}
+<div class="page-header">
+  <div class="header-row">
+    <div>
+      <h1>{{ clinic.name }}</h1>
+      <p class="subtitle">{{ clinic.province }} · Admin: {{ user.get_full_name }}</p>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-ghost btn-sm" onclick="showToast('Generating CSV report…')">📥 Export CSV</button>
+      <button class="btn btn-primary btn-sm" id="broadcast-toggle" onclick="document.getElementById('broadcast-panel').style.display=document.getElementById('broadcast-panel').style.display==='none'?'block':'none'">📢 Broadcast</button>
+    </div>
+  </div>
+</div>
+
+<!-- Broadcast panel -->
+<div id="broadcast-panel" style="display:none;" class="card mb-20" style="border:2px solid var(--teal);">
+  <div class="card-label" style="color:var(--teal);">📢 Broadcast SMS to All Patients</div>
+  <textarea style="width:100%;padding:14px;border-radius:var(--radius-sm);border:1.5px solid var(--ink-10);font-family:'DM Sans',sans-serif;font-size:.9rem;resize:vertical;min-height:90px;outline:none;margin:12px 0;">PILL PAL — {{ clinic.name }}: </textarea>
+  <div class="flex-between">
+    <div class="text-sm">Sends to <strong>{{ total_patients }}</strong> registered patients</div>
+    <button class="btn btn-primary btn-sm" onclick="showToast('📢 Broadcast sent to {{ total_patients }} patients');document.getElementById('broadcast-panel').style.display='none'">Send</button>
+  </div>
+</div>
+
+<div class="grid-4 mb-20">
+  <div class="stat-card card"><div class="card-label">Total Patients</div><div class="card-value teal">{{ total_patients }}</div><div class="text-xs mt-4">Registered</div></div>
+  <div class="stat-card card"><div class="card-label">Avg. Adherence</div><div class="card-value green">{{ avg_adherence }}%</div><div class="text-xs mt-4">30-day rate</div></div>
+  <div class="stat-card card"><div class="card-label">At-Risk</div><div class="card-value red">{{ at_risk_count }}</div><div class="text-xs mt-4">Below 80%</div></div>
+  <div class="stat-card card"><div class="card-label">Clinic</div><div style="font-family:'Fraunces',serif;font-size:1rem;font-weight:600;margin-top:4px;">{{ clinic.name }}</div><div class="text-xs mt-4">{{ clinic.province }}</div></div>
+</div>
+
+<div class="card">
+  <div class="flex-between mb-16">
+    <div class="card-label" style="margin:0;">At-Risk Patients <span class="badge badge-red" style="margin-left:8px;">{{ at_risk_count }}</span></div>
+    <div class="text-xs">Sorted by lowest adherence</div>
+  </div>
+  {% if at_risk %}
+  <div style="overflow-x:auto;">
+    <table class="data-table">
+      <thead><tr>
+        <th>Patient</th><th>30-day Rate</th><th>Missed</th><th>Channel</th><th>Action</th>
+      </tr></thead>
+      <tbody>
+        {% for ar in at_risk %}
+        <tr>
+          <td><div style="font-weight:600;">{{ ar.patient.get_full_name }}</div><div class="text-xs">{{ ar.patient.phone_number }}</div></td>
+          <td>
+            <div class="font-display bold" style="color:{% if ar.pct < 60 %}var(--red){% else %}var(--amber){% endif %};">{{ ar.pct }}%</div>
+            <div class="mini-bar" style="width:80px;"><div class="mini-bar-fill" style="width:{{ ar.pct }}%;background:{% if ar.pct < 60 %}var(--red){% else %}var(--amber){% endif %};"></div></div>
+          </td>
+          <td><span class="badge badge-red">{{ ar.missed }} missed</span></td>
+          <td><span class="badge badge-teal">{{ ar.patient.get_channel_preference_display }}</span></td>
+          <td>
+            <button class="btn btn-primary btn-sm" onclick="showToast('Sending alert to {{ ar.patient.first_name }}…')">Alert</button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-sm" style="text-align:center;padding:24px 0;">🎉 All patients are above 80% adherence — great work!</p>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function confirmDose(btn) {
+  fetch("{% url 'api_confirm_dose' %}", {
+    method: 'POST',
+    headers: {'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token }}'},
+    body: JSON.stringify({method: 'app'})
+  }).then(r=>r.json()).then(data=>{
+    btn.textContent = '✓ Confirmed!';
+    btn.style.pointerEvents = 'none';
+    btn.style.background = 'rgba(255,255,255,0.2)';
+    btn.style.color = 'white';
+    showToast('✅ Dose confirmed successfully!');
+  }).catch(()=>{
+    btn.textContent = '✓ Confirmed!';
+    btn.style.pointerEvents = 'none';
+    showToast('✅ Dose confirmed!');
+  });
+}
+</script>
+{% endblock %}

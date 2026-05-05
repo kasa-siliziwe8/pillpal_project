@@ -1,0 +1,79 @@
+{% extends 'core/base.html' %}
+{% block title %}Notifications{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="header-row">
+    <div>
+      <h1>Notifications</h1>
+      <p class="subtitle">Your reminders, alerts, and clinic messages</p>
+    </div>
+    {% if unread > 0 %}
+    <button class="btn btn-ghost btn-sm" onclick="markAllRead()">✓ Mark all read</button>
+    {% endif %}
+  </div>
+</div>
+
+{% if notifications %}
+<div style="display:flex;flex-direction:column;gap:10px;">
+  {% for n in notifications %}
+  <div class="card notif-card {% if not n.read %}unread{% endif %}" id="notif-{{ n.pk }}"
+       style="{% if not n.read %}border-left:4px solid var(--teal);{% endif %}padding:16px 20px;display:flex;align-items:flex-start;gap:14px;cursor:pointer;"
+       onclick="markRead({{ n.pk }}, this)">
+    <div style="font-size:1.4rem;flex-shrink:0;">
+      {% if n.notification_type == 'reminder' %}💊
+      {% elif n.notification_type == 'escalation' %}🚨
+      {% elif n.notification_type == 'refill' %}🔄
+      {% elif n.notification_type == 'broadcast' %}📢
+      {% elif n.notification_type == 'confirmation' %}✅
+      {% else %}ℹ️{% endif %}
+    </div>
+    <div style="flex:1;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+        <span style="font-weight:{% if not n.read %}700{% else %}500{% endif %};font-size:.92rem;">{{ n.get_notification_type_display }}</span>
+        <span class="badge badge-{% if n.channel == 'sms' %}teal{% elif n.channel == 'voice' %}amber{% else %}green{% endif %}">{{ n.get_channel_display }}</span>
+        {% if not n.read %}<span class="badge badge-teal" style="font-size:.65rem;">NEW</span>{% endif %}
+      </div>
+      <div style="font-size:.88rem;color:var(--ink-60);line-height:1.5;">{{ n.message|truncatechars:180 }}</div>
+      <div class="text-xs" style="margin-top:6px;">{{ n.created_at|date:"d M Y · H:i" }}</div>
+    </div>
+    <div>
+      <span class="badge badge-{% if n.status == 'delivered' %}green{% elif n.status == 'sent' %}teal{% elif n.status == 'failed' %}red{% else %}amber{% endif %}">{{ n.get_status_display }}</span>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card" style="text-align:center;padding:64px 32px;">
+  <div style="font-size:3rem;margin-bottom:16px;">🔔</div>
+  <div style="font-family:'Fraunces',serif;font-size:1.3rem;font-weight:600;margin-bottom:8px;">No notifications yet</div>
+  <p class="text-sm">Your reminders, alerts, and clinic messages will appear here.</p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CSRF = '{{ csrf_token }}';
+function markRead(pk, card) {
+  fetch(`/notifications/${pk}/read/`, {
+    method: 'POST',
+    headers: {'X-CSRFToken': CSRF, 'Content-Type': 'application/json'},
+  }).then(() => {
+    card.style.borderLeft = 'none';
+    card.querySelector('.badge-teal[style]') && card.querySelector('[style*="NEW"]')?.remove();
+  });
+}
+function markAllRead() {
+  fetch('/notifications/mark-all-read/', {
+    method: 'POST',
+    headers: {'X-CSRFToken': CSRF, 'Content-Type': 'application/json'},
+  }).then(() => {
+    document.querySelectorAll('.notif-card.unread').forEach(c => {
+      c.style.borderLeft = 'none';
+      c.classList.remove('unread');
+    });
+    showToast('✓ All notifications marked as read');
+  });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,96 @@
+{% extends 'core/base.html' %}
+{% block title %}Medications{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Medications</h1>
+  <p class="subtitle">Your current schedule and medication information</p>
+</div>
+
+<div style="display:flex;gap:12px;margin-bottom:28px;flex-wrap:wrap;">
+  {% for s in schedules %}
+  <a href="{% url 'medication_detail' s.medication.pk %}"
+     class="btn {% if selected and selected.pk == s.medication.pk %}btn-primary{% else %}btn-ghost{% endif %} btn-sm">
+    {{ s.medication.generic_name }} {{ s.dosage }}
+  </a>
+  {% endfor %}
+</div>
+
+{% if selected %}
+<div style="display:grid;grid-template-columns:280px 1fr;gap:24px;align-items:start;">
+  <!-- Pill card -->
+  <div class="card" style="text-align:center;">
+    {% with selected.pill_color as pc %}
+    <div style="width:80px;height:40px;border-radius:100px;margin:0 auto 16px;background:linear-gradient(135deg,{{ pc|default:'#2A9090,#1A6B6B' }});position:relative;overflow:hidden;">
+      <div style="position:absolute;left:50%;top:0;bottom:0;width:2px;background:rgba(255,255,255,.4);transform:translateX(-50%);"></div>
+    </div>
+    {% endwith %}
+    <div style="font-family:'Fraunces',serif;font-size:1.3rem;font-weight:600;margin-bottom:4px;">{{ selected.generic_name }}</div>
+    <div class="text-sm mb-20">{{ selected.brand_name }}</div>
+    <span class="badge badge-teal">{{ selected.drug_class }}</span>
+    {% if schedule %}
+    <div style="background:var(--teal-pale);border-radius:var(--radius-sm);padding:14px;margin-top:20px;text-align:center;">
+      <div class="text-xs" style="color:var(--teal);">YOUR SCHEDULE</div>
+      <div style="font-weight:700;color:var(--teal);margin-top:4px;">{{ schedule.dosage }} · {{ schedule.get_frequency_display }}</div>
+      <div class="text-xs mt-4">{{ schedule.scheduled_time_1|time:"H:i" }}{% if schedule.scheduled_time_2 %} &amp; {{ schedule.scheduled_time_2|time:"H:i" }}{% endif %}</div>
+    </div>
+    {% endif %}
+    <div class="divider"></div>
+    <a href="{% url 'sms_simulator' %}" class="btn btn-primary" style="width:100%;justify-content:center;">📱 Query via SMS</a>
+  </div>
+
+  <!-- Accordion info -->
+  <div class="accordion-card">
+    <div class="accordion-item">
+      <button class="accordion-trigger open" onclick="toggleAcc(this)">
+        <span>💡 What is it for?</span><span class="accordion-chevron">▼</span>
+      </button>
+      <div class="accordion-body open"><p>{{ selected.description }}</p></div>
+    </div>
+    <div class="accordion-item">
+      <button class="accordion-trigger" onclick="toggleAcc(this)">
+        <span>📋 How to take it</span><span class="accordion-chevron">▼</span>
+      </button>
+      <div class="accordion-body"><p>{{ selected.how_to_take }}</p></div>
+    </div>
+    <div class="accordion-item">
+      <button class="accordion-trigger" onclick="toggleAcc(this)">
+        <span>⚠️ Side effects</span><span class="accordion-chevron">▼</span>
+      </button>
+      <div class="accordion-body">
+        <ul style="list-style:none;">
+          {% for effect in selected.side_effects_list %}
+          <li style="display:flex;align-items:center;gap:8px;font-size:.9rem;color:var(--ink-60);padding:5px 0;">
+            <span style="color:var(--amber);">○</span> {{ effect }}
+          </li>
+          {% endfor %}
+        </ul>
+        <p style="margin-top:10px;font-size:.82rem;color:var(--red);">Seek medical attention for severe symptoms.</p>
+      </div>
+    </div>
+    <div class="accordion-item">
+      <button class="accordion-trigger" onclick="toggleAcc(this)">
+        <span>⏰ Missed a dose?</span><span class="accordion-chevron">▼</span>
+      </button>
+      <div class="accordion-body"><p>{{ selected.missed_dose_instructions }}</p></div>
+    </div>
+    <div class="accordion-item">
+      <button class="accordion-trigger" onclick="toggleAcc(this)">
+        <span>❓ Ask your clinic</span><span class="accordion-chevron">▼</span>
+      </button>
+      <div class="accordion-body">
+        <p style="margin-bottom:12px;">Have a question about this medication? Your clinic team will respond within 24 hours.</p>
+        <textarea class="form-input" style="min-height:80px;resize:vertical;border-radius:var(--radius-sm);" placeholder="Type your question here…"></textarea>
+        <button class="btn btn-primary btn-sm" style="margin-top:8px;" onclick="showToast('Question sent to clinic team!')">Send to Clinic</button>
+        <div class="text-xs mt-4">⚕️ Not an emergency service. Responses within 24 hours on business days.</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="card" style="text-align:center;padding:48px;">
+  <div style="font-size:2rem;margin-bottom:12px;">💊</div>
+  <div style="font-family:'Fraunces',serif;font-size:1.2rem;font-weight:600;margin-bottom:8px;">No medications found</div>
+  <p class="text-sm">Contact your clinic to set up your medication schedule.</p>
+</div>
+{% endif %}
+{% endblock %}
