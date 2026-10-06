@@ -27,7 +27,7 @@ def send_notification(dose_log=None, channel=None, notification_type='reminder',
     if patient is None:
         raise ValueError("send_notification needs a dose_log or a recipient")
 
-    channel = channel or getattr(patient, 'preferred_channel', 'sms')
+    channel = channel or getattr(patient, 'channel_preference', 'sms')
 
     if message is None:
         if dose_log:

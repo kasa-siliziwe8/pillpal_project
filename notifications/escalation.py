@@ -35,6 +35,7 @@ from django.utils import timezone
 from accounts.models import CaregiverPatient, User
 from medications.models import DoseLog
 from .models import Escalation, Notification
+from .services import send_notification
 
 LEVEL_CAREGIVER = 1
 LEVEL_CLINIC = 2
@@ -130,32 +131,22 @@ def build_message(dose, level):
             f'after several hours. Please follow up.')
 
 
-def _channel_for(recipient):
-    """Map the recipient's preference to a Notification channel ('app' if unknown)."""
-    pref = recipient.channel_preference
-    return pref if pref in ('sms', 'voice', 'app') else 'app'
-
-
 # --------------------------------------------------------------------------- #
 # Actions (these write)
 # --------------------------------------------------------------------------- #
 def _send(dose, level, recipient):
     """
-    Create the Escalation + Notification for one recipient.
-
-    Notification is created directly here. When Mbuzeni's notifications/services.py
-    lands, swap the Notification.objects.create(...) call below for her service
-    function; nothing else in this module needs to change.
+    Create the Escalation record, then send the alert through
+    notifications.services.send_notification (Mbuzeni's pipeline), so escalation
+    messages go through the same simulated-provider path as every other
+    notification in the app.
     """
     Escalation.objects.create(dose_log=dose, level=level, alert_sent_to=recipient)
-    Notification.objects.create(
+    send_notification(
+        dose_log=dose,
         recipient=recipient,
-        channel=_channel_for(recipient),
         notification_type='escalation',
         message=build_message(dose, level),
-        status='sent',
-        sent_at=timezone.now(),
-        dose_log=dose,
     )
 
 

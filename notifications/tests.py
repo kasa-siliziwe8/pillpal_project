@@ -250,3 +250,42 @@ class WiringTests(EscalationTestBase):
         self.client.post('/medications/api/confirm/', data='{"log_id": %d}' % dose.pk,
                          content_type='application/json')
         self.assertFalse(Escalation.objects.filter(dose_log=dose, resolved=False).exists())
+
+
+class ServicesIntegrationTests(EscalationTestBase):
+    """Confirms escalation.py and services.py (Mbuzeni's pipeline) work together."""
+
+    def test_escalation_goes_through_send_notification(self):
+        """Channel should follow the recipient's channel_preference, not default to sms."""
+        self.caregiver.channel_preference = 'voice'
+        self.caregiver.save()
+        self.make_dose(90)
+        run_escalation_check(self.now)
+        note = Notification.objects.get(recipient=self.caregiver)
+        self.assertEqual(note.channel, 'voice')
+        self.assertEqual(note.notification_type, 'escalation')
+        self.assertIn('Thabo', note.message)
+
+
+class FullChainTests(EscalationTestBase):
+    """generate_daily_doses -> check_escalations -> send_notification, end to end."""
+
+    def test_generated_dose_gets_escalated_and_notified(self):
+        from datetime import datetime
+        from medications.dose_generation import generate_doses_for_date
+
+        # Make the schedule's dose time 90 minutes in the past so it's overdue today.
+        past_time = (self.now - timedelta(minutes=90)).astimezone(timezone.get_current_timezone()).time()
+        self.schedule.scheduled_time_1 = past_time
+        self.schedule.save()
+
+        gen_result = generate_doses_for_date(timezone.localdate())
+        self.assertEqual(gen_result.created, 1)
+
+        esc_result = run_escalation_check(self.now)
+        self.assertEqual(esc_result.level1_created, 1)
+
+        dose = DoseLog.objects.get()
+        self.assertEqual(dose.status, 'missed')
+        note = Notification.objects.get(recipient=self.caregiver)
+        self.assertEqual(note.notification_type, 'escalation')
