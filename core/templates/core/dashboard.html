@@ -155,6 +155,12 @@
       {% if pd.missed_recent %}
       <div class="text-xs mt-4">Last missed: {{ pd.missed_recent.schedule.medication.generic_name }} — {{ pd.missed_recent.scheduled_datetime|date:"d M H:i" }}</div>
       {% endif %}
+      {% for esc in pd.open_escalations %}
+      <div class="text-xs mt-4" id="esc-{{ esc.pk }}" style="display:flex;align-items:center;gap:8px;color:var(--red);">
+        <span>⚠ Alert: {{ esc.dose_log.schedule.medication.generic_name }} dose at {{ esc.dose_log.scheduled_datetime|date:"d M H:i" }} not confirmed</span>
+        <button class="btn btn-ghost btn-sm" onclick="resolveEscalation({{ esc.pk }})">Resolve</button>
+      </div>
+      {% endfor %}
       <div style="margin-top:8px;">
         {% if pd.pct >= 85 %}<span class="badge badge-green badge-dot">On Track</span>
         {% elif pd.pct >= 70 %}<span class="badge badge-amber badge-dot">Needs Attention</span>
@@ -265,6 +271,21 @@ function confirmDose(btn) {
     btn.textContent = '✓ Confirmed!';
     btn.style.pointerEvents = 'none';
     showToast('✅ Dose confirmed!');
+  });
+}
+</script>
+
+<script>
+function resolveEscalation(id) {
+  fetch('/notifications/escalations/' + id + '/resolve/', {
+    method: 'POST',
+    headers: {'X-CSRFToken': '{{ csrf_token }}'}
+  }).then(r => r.json()).then(d => {
+    if (d.success) {
+      var el = document.getElementById('esc-' + id);
+      if (el) el.remove();
+      if (typeof showToast === 'function') showToast('Escalation resolved');
+    }
   });
 }
 </script>

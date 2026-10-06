@@ -5,6 +5,7 @@ from django.http import JsonResponse
 from django.utils import timezone
 from datetime import date
 from .models import Medication, MedicationSchedule, DoseLog
+from notifications.escalation import resolve_for_dose
 import json
 
 @login_required
@@ -112,6 +113,7 @@ def api_dose_confirm(request):
                 log.confirmed_at = timezone.now()
                 log.confirmation_method = method
                 log.save()
+                resolve_for_dose(log)
                 return JsonResponse({'success': True, 'message': 'Dose confirmed!'})
             except DoseLog.DoesNotExist:
                 pass
@@ -122,6 +124,7 @@ def api_dose_confirm(request):
             log.confirmed_at = timezone.now()
             log.confirmation_method = method
             log.save()
+            resolve_for_dose(log)
             return JsonResponse({'success': True, 'message': 'Dose confirmed!'})
         return JsonResponse({'success': True, 'message': 'Confirmed!'})
     return JsonResponse({'success': False})

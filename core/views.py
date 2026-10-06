@@ -5,6 +5,8 @@ from django.utils import timezone
 from datetime import timedelta, date
 from medications.models import MedicationSchedule, DoseLog, Medication
 from accounts.models import User, CaregiverPatient
+from notifications.models import Escalation
+from notifications.escalation import resolve_for_dose
 import json
 
 def landing(request):
@@ -92,10 +94,14 @@ def dashboard(request):
             pct = round((confirmed / total * 100) if total else 0)
             missed_recent = logs.filter(status='missed').order_by('-scheduled_datetime').first()
             last_confirmed = logs.filter(status='confirmed').order_by('-confirmed_at').first()
+            open_escalations = Escalation.objects.filter(
+                dose_log__patient=p, alert_sent_to=user, resolved=False
+            ).select_related('dose_log__schedule__medication').order_by('-sent_at')
             patient_data.append({
                 'patient': p, 'pct': pct,
                 'missed_recent': missed_recent,
                 'last_confirmed': last_confirmed,
+                'open_escalations': open_escalations,
                 'link': link,
             })
         context['patient_data'] = patient_data
@@ -177,6 +183,7 @@ def api_confirm_dose(request):
                 log.confirmed_at = timezone.now()
                 log.confirmation_method = method
                 log.save()
+                resolve_for_dose(log)
                 return JsonResponse({'success': True, 'message': 'Dose confirmed!'})
             except DoseLog.DoesNotExist:
                 pass
@@ -187,6 +194,7 @@ def api_confirm_dose(request):
             log.confirmed_at = timezone.now()
             log.confirmation_method = method
             log.save()
+            resolve_for_dose(log)
         return JsonResponse({'success': True, 'message': 'Dose confirmed!'})
     return JsonResponse({'success': False})
 
