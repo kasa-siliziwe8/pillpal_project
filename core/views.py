@@ -6,6 +6,8 @@ from datetime import timedelta, date
 from medications.models import MedicationSchedule, DoseLog, Medication
 from accounts.models import User, CaregiverPatient
 import json
+from notifications.services import send_notification
+from medications.models import DoseLog
 
 def landing(request):
     if request.user.is_authenticated:
@@ -165,9 +167,10 @@ def voice_channel(request):
 def api_confirm_dose(request):
     if request.method == 'POST':
         try:
-            data = json.loads(request.body)
+               data = json.loads(request.body)
         except Exception:
-            data = {}
+               data = {}
+
         log_id = data.get('log_id')
         method = data.get('method', 'app')
         if log_id:
@@ -221,6 +224,14 @@ def api_sms_respond(request):
             else:
                 reply = f'PILL PAL: No info found for "{message[5:]}". Check spelling or ask your clinic. Reply HELP for commands.'
         else:
-            reply = f'PILL PAL: Message not recognised. Reply HELP for a list of commands, or visit your clinic for assistance.'
+            reply = 'PILL PAL: Message not recognised. Reply HELP for a list of commands, or visit your clinic for assistance.'
+
+        
+        dose_log = DoseLog.objects.filter(patient=user, status='pending').order_by('scheduled_datetime').first()
+        send_notification(dose_log=dose_log, recipient=user, channel='sms',
+                          notification_type='sms_inbound', message=data.get('message', ''))
+        send_notification(dose_log=dose_log, recipient=user, channel='sms',
+                          notification_type='sms_reply', message=reply)
+
         return JsonResponse({'reply': reply})
     return JsonResponse({'reply': ''})
