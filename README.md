@@ -1,8 +1,4 @@
 # Pill Pal — Medication Adherence System
-### HCI / ICT Electives II — NHCI62110 / NITE63410
-**Sol Plaatje University, Northern Cape, South Africa**
-
----
 
 ## Overview
 
@@ -146,23 +142,7 @@ pillpal_project/
 - `notification_type`: reminder / escalation / refill / broadcast / confirmation / info
 - `channel`, `status`, `read`
 
----
 
-## HCI Design Principles Applied
 
-| Principle | Implementation |
-|---|---|
-| **Cognitive Load Reduction** (Sweller) | Single action card, one CTA at a time |
-| **Error Prevention** (Norman) | Dose confirmation greyed after tap, duplicate guard |
-| **Universal Design** (ISO 9241-171) | SMS + voice for non-smartphone users |
-| **Accessibility** | No data needed for SMS/voice channels |
-| **Learnability** | Onboarding flow; zero-training SMS confirmation |
 
----
 
-## Academic Context
-
-- **Module**: Human Computer Interaction / ICT Electives II
-- **Code**: NHCI62110 / NITE63410
-- **Institution**: Sol Plaatje University
-- **Year**: 2026
