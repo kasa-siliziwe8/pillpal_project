@@ -1,7 +1,4 @@
 # Pill Pal — Medication Adherence System
-**Sol Plaatje University, Northern Cape, South Africa**
-
----
 
 ## Overview
 
