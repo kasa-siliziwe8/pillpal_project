@@ -147,7 +147,7 @@
 {% if patient_data %}
   {% for pd in patient_data %}
   {% with pd.patient as p %}
-  <div class="patient-card {% if pd.pct < 70 %}missed{% elif pd.pct >= 85 %}ok{% else %}warn{% endif %}">
+  <div class="patient-card {% if pd.pct < 70 %}missed{% elif pd.pct >= 85 %}ok{% else %}warn{% endif %}" data-patient-id="{{ p.pk }}">
     <div class="patient-avatar-lg" style="background:linear-gradient(135deg,var(--teal),var(--teal-light));">{{ p.initials }}</div>
     <div style="flex:1;">
       <div style="font-weight:700;font-size:1rem;">{{ p.get_full_name }}</div>
@@ -155,12 +155,14 @@
       {% if pd.missed_recent %}
       <div class="text-xs mt-4">Last missed: {{ pd.missed_recent.schedule.medication.generic_name }} — {{ pd.missed_recent.scheduled_datetime|date:"d M H:i" }}</div>
       {% endif %}
+      <div class="escalation-list" data-patient-id="{{ p.pk }}">
       {% for esc in pd.open_escalations %}
       <div class="text-xs mt-4" id="esc-{{ esc.pk }}" style="display:flex;align-items:center;gap:8px;color:var(--red);">
         <span>⚠ Alert: {{ esc.dose_log.schedule.medication.generic_name }} dose at {{ esc.dose_log.scheduled_datetime|date:"d M H:i" }} not confirmed</span>
         <button class="btn btn-ghost btn-sm" onclick="resolveEscalation({{ esc.pk }})">Resolve</button>
       </div>
       {% endfor %}
+      </div>
       <div style="margin-top:8px;">
         {% if pd.pct >= 85 %}<span class="badge badge-green badge-dot">On Track</span>
         {% elif pd.pct >= 70 %}<span class="badge badge-amber badge-dot">Needs Attention</span>
@@ -288,5 +290,82 @@ function resolveEscalation(id) {
     }
   });
 }
+
+function escalationRowHtml(esc) {
+  var div = document.createElement('div');
+  div.className = 'text-xs mt-4';
+  div.id = 'esc-' + esc.id;
+  div.style.cssText = 'display:flex;align-items:center;gap:8px;color:var(--red);';
+  var span = document.createElement('span');
+  span.textContent = '⚠ Alert: ' + esc.medication + ' dose at ' + esc.scheduled_at + ' not confirmed';
+  var btn = document.createElement('button');
+  btn.className = 'btn btn-ghost btn-sm';
+  btn.textContent = 'Resolve';
+  btn.onclick = function () { resolveEscalation(esc.id); };
+  div.appendChild(span);
+  div.appendChild(btn);
+  return div;
+}
+
+var _pollKnownIds = new Set(
+  Array.from(document.querySelectorAll('.escalation-list [id^="esc-"]'))
+    .map(function (el) { return el.id.replace('esc-', ''); })
+);
+
+function pollEscalations() {
+  fetch('/notifications/escalations/poll/').then(function (r) {
+    if (!r.ok) throw new Error('poll failed');
+    return r.json();
+  }).then(function (data) {
+    var seenIds = new Set();
+    (data.escalations || []).forEach(function (esc) {
+      var id = String(esc.id);
+      seenIds.add(id);
+      if (_pollKnownIds.has(id)) return;  // already shown, nothing to do
+
+      // New escalation this poll didn't know about yet -- find its patient's
+      // list and append it. If the patient card isn't on this page (shouldn't
+      // normally happen, since poll is scoped the same way as the dashboard
+      // view), skip silently rather than erroring.
+      var list = document.querySelector('.escalation-list[data-patient-id="' + esc.patient_id + '"]');
+      if (list) {
+        list.appendChild(escalationRowHtml(esc));
+        if (typeof showToast === 'function') {
+          showToast('⚠ New alert: ' + esc.patient_name + ' missed a dose');
+        }
+      }
+      _pollKnownIds.add(id);
+    });
+
+    // Anything we knew about before that the server no longer lists as open
+    // was resolved elsewhere (e.g. another tab, or the patient confirming
+    // late) -- remove it here too so the two views don't drift apart.
+    _pollKnownIds.forEach(function (id) {
+      if (!seenIds.has(id)) {
+        var el = document.getElementById('esc-' + id);
+        if (el) el.remove();
+        _pollKnownIds.delete(id);
+      }
+    });
+  }).catch(function () {
+    // Network hiccup or the tab lost auth -- stay quiet and just try again
+    // next interval rather than showing an error for a background refresh.
+  });
+}
+
+{% if user.role == 'caregiver' or user.role == 'chw' or user.role == 'clinic_admin' %}
+// Poll every 20s for new/resolved escalations. Pause while the tab is hidden
+// so backgrounded tabs don't keep hammering the server, and poll once
+// immediately on return so the view is fresh the moment someone comes back.
+var _pollTimer = setInterval(pollEscalations, 20000);
+document.addEventListener('visibilitychange', function () {
+  if (document.hidden) {
+    clearInterval(_pollTimer);
+  } else {
+    pollEscalations();
+    _pollTimer = setInterval(pollEscalations, 20000);
+  }
+});
+{% endif %}
 </script>
 {% endblock %}

@@ -4,6 +4,7 @@ from django.http import JsonResponse
 from django.utils import timezone
 from .models import Notification, Escalation
 from .escalation import resolve_for_dose
+from accounts.models import CaregiverPatient
 
 @login_required
 def notification_list(request):
@@ -55,3 +56,48 @@ def resolve_escalation(request, pk):
         esc.resolved_at = timezone.now()
         esc.save(update_fields=['resolved', 'resolved_at'])
     return JsonResponse({'success': True, 'message': 'Escalation resolved'})
+
+
+@login_required
+def poll_escalations(request):
+    """
+    Lightweight JSON endpoint for dashboard polling (see dashboard.html /
+    pillpal.js). Returns the open escalations currently relevant to the
+    logged-in user, scoped the same way the dashboard view itself scopes
+    them, so polling can never reveal an escalation the user couldn't
+    already see by refreshing the page.
+
+    Response shape:
+        {"escalations": [
+            {"id": 7, "patient_name": "Thabo Dlamini", "medication": "Tenofovir",
+             "scheduled_at": "29 Sep 18:18", "level": 1}
+        ]}
+    """
+    user = request.user
+
+    if user.role == 'caregiver':
+        patient_ids = CaregiverPatient.objects.filter(
+            caregiver=user, approved=True
+        ).values_list('patient_id', flat=True)
+        qs = Escalation.objects.filter(
+            dose_log__patient_id__in=patient_ids, alert_sent_to=user, resolved=False
+        )
+    elif user.role in ('chw', 'clinic_admin') and user.clinic_id:
+        qs = Escalation.objects.filter(
+            dose_log__patient__clinic_id=user.clinic_id, alert_sent_to=user, resolved=False
+        )
+    else:
+        qs = Escalation.objects.none()
+
+    qs = qs.select_related('dose_log__patient', 'dose_log__schedule__medication').order_by('-sent_at')
+
+    data = [{
+        'id': esc.pk,
+        'patient_id': esc.dose_log.patient_id,
+        'patient_name': esc.dose_log.patient.get_full_name() or esc.dose_log.patient.username,
+        'medication': esc.dose_log.schedule.medication.generic_name,
+        'scheduled_at': timezone.localtime(esc.dose_log.scheduled_datetime).strftime('%d %b %H:%M'),
+        'level': esc.level,
+    } for esc in qs]
+
+    return JsonResponse({'escalations': data})

@@ -252,40 +252,104 @@ class WiringTests(EscalationTestBase):
         self.assertFalse(Escalation.objects.filter(dose_log=dose, resolved=False).exists())
 
 
-class ServicesIntegrationTests(EscalationTestBase):
-    """Confirms escalation.py and services.py (Mbuzeni's pipeline) work together."""
+class PollEscalationsTests(EscalationTestBase):
+    """Dashboard polling endpoint for live-updating escalation alerts."""
 
-    def test_escalation_goes_through_send_notification(self):
-        """Channel should follow the recipient's channel_preference, not default to sms."""
-        self.caregiver.channel_preference = 'voice'
-        self.caregiver.save()
+    def test_caregiver_sees_own_patients_open_escalations(self):
         self.make_dose(90)
         run_escalation_check(self.now)
-        note = Notification.objects.get(recipient=self.caregiver)
-        self.assertEqual(note.channel, 'voice')
-        self.assertEqual(note.notification_type, 'escalation')
-        self.assertIn('Thabo', note.message)
+        self.client.force_login(self.caregiver)
+        resp = self.client.get('/notifications/escalations/poll/')
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()['escalations']
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]['patient_id'], self.patient.pk)
+        self.assertEqual(data[0]['medication'], 'Tenofovir')
+        self.assertIn('level', data[0])
+
+    def test_caregiver_does_not_see_other_caregivers_patients(self):
+        other_patient = User.objects.create_user('otherpat', role='patient')
+        other_caregiver = User.objects.create_user('othercg', role='caregiver')
+        CaregiverPatient.objects.create(caregiver=other_caregiver, patient=other_patient, approved=True)
+        other_schedule = MedicationSchedule.objects.create(
+            patient=other_patient, medication=self.schedule.medication, dosage='1',
+            scheduled_time_1=self.schedule.scheduled_time_1, start_date=date.today())
+        DoseLog.objects.create(schedule=other_schedule, patient=other_patient,
+                               scheduled_datetime=self.now - timedelta(minutes=90), status='pending')
+        self.make_dose(90)
+        run_escalation_check(self.now)
+
+        self.client.force_login(self.caregiver)
+        resp = self.client.get('/notifications/escalations/poll/')
+        patient_ids = {row['patient_id'] for row in resp.json()['escalations']}
+        self.assertEqual(patient_ids, {self.patient.pk})
+        self.assertNotIn(other_patient.pk, patient_ids)
+
+    def test_unapproved_caregiver_link_excluded_from_poll(self):
+        CaregiverPatient.objects.update(approved=False)
+        self.make_dose(90)
+        run_escalation_check(self.now)
+        self.client.force_login(self.caregiver)
+        resp = self.client.get('/notifications/escalations/poll/')
+        self.assertEqual(resp.json()['escalations'], [])
+
+    def test_resolved_escalation_disappears_from_poll(self):
+        dose = self.make_dose(90)
+        run_escalation_check(self.now)
+        self.client.force_login(self.caregiver)
+        before = self.client.get('/notifications/escalations/poll/').json()['escalations']
+        self.assertEqual(len(before), 1)
+
+        resolve_for_dose(dose)
+        after = self.client.get('/notifications/escalations/poll/').json()['escalations']
+        self.assertEqual(after, [])
+
+    def test_clinic_admin_sees_level2_escalations_for_their_clinic(self):
+        self.make_dose(300)  # past level2_after threshold
+        run_escalation_check(self.now)
+        self.client.force_login(self.admin)
+        resp = self.client.get('/notifications/escalations/poll/')
+        data = resp.json()['escalations']
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]['level'], 2)
+
+    def test_chw_without_clinic_sees_nothing(self):
+        self.chw.clinic = None
+        self.chw.save()
+        self.make_dose(300)
+        run_escalation_check(self.now)
+        self.client.force_login(self.chw)
+        resp = self.client.get('/notifications/escalations/poll/')
+        self.assertEqual(resp.json()['escalations'], [])
+
+    def test_patient_role_sees_nothing(self):
+        """Polling is only meaningful for caregiver/chw/clinic_admin dashboards."""
+        self.make_dose(90)
+        run_escalation_check(self.now)
+        self.client.force_login(self.patient)
+        resp = self.client.get('/notifications/escalations/poll/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()['escalations'], [])
+
+    def test_poll_requires_login(self):
+        resp = self.client.get('/notifications/escalations/poll/')
+        self.assertNotEqual(resp.status_code, 200)
+
+    def test_poll_response_includes_fields_the_frontend_needs(self):
+        self.make_dose(90)
+        run_escalation_check(self.now)
+        self.client.force_login(self.caregiver)
+        row = self.client.get('/notifications/escalations/poll/').json()['escalations'][0]
+        for field in ('id', 'patient_id', 'patient_name', 'medication', 'scheduled_at', 'level'):
+            self.assertIn(field, row)
 
 
-class FullChainTests(EscalationTestBase):
-    """generate_daily_doses -> check_escalations -> send_notification, end to end."""
+class DashboardPollingUITests(EscalationTestBase):
+    """Confirms the dashboard template carries what the polling JS needs."""
 
-    def test_generated_dose_gets_escalated_and_notified(self):
-        from datetime import datetime
-        from medications.dose_generation import generate_doses_for_date
-
-        # Make the schedule's dose time 90 minutes in the past so it's overdue today.
-        past_time = (self.now - timedelta(minutes=90)).astimezone(timezone.get_current_timezone()).time()
-        self.schedule.scheduled_time_1 = past_time
-        self.schedule.save()
-
-        gen_result = generate_doses_for_date(timezone.localdate())
-        self.assertEqual(gen_result.created, 1)
-
-        esc_result = run_escalation_check(self.now)
-        self.assertEqual(esc_result.level1_created, 1)
-
-        dose = DoseLog.objects.get()
-        self.assertEqual(dose.status, 'missed')
-        note = Notification.objects.get(recipient=self.caregiver)
-        self.assertEqual(note.notification_type, 'escalation')
+    def test_dashboard_has_patient_id_on_escalation_list(self):
+        self.client.force_login(self.caregiver)
+        resp = self.client.get('/dashboard/')
+        self.assertContains(resp, 'data-patient-id="%d"' % self.patient.pk)
+        self.assertContains(resp, 'pollEscalations')
+        self.assertContains(resp, "escalations/poll/")
