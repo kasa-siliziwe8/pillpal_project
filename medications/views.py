@@ -7,6 +7,7 @@ from datetime import date
 from .models import Medication, MedicationSchedule, DoseLog
 from notifications.escalation import resolve_for_dose
 import json
+from .sms_utils import send_sms_via_textbee
 
 @login_required
 def medication_list(request):
@@ -45,6 +46,7 @@ def schedule_list(request):
     })
 
 @login_required
+@login_required
 def schedule_add(request):
     if request.method == 'POST':
         med_id = request.POST.get('medication')
@@ -63,10 +65,31 @@ def schedule_add(request):
                 start_date=date.today(), supply_days=supply,
             )
             messages.success(request, f'{med.generic_name} schedule added successfully.')
+
+            # --- Send confirmation SMS via TextBee ---
+            patient_phone = getattr(request.user, 'phone_number', None) or getattr(request.user, 'phone', None)
+            if patient_phone:
+                # Normalize to E.164 format for South Africa
+                phone = str(patient_phone).strip()
+                if phone.startswith('0'):
+                    phone = '+27' + phone[1:]
+                elif not phone.startswith('+'):
+                    phone = '+27' + phone
+
+                result = send_sms_via_textbee(
+                    phone,
+                    f"PillPal: Your reminder for {med.generic_name} has been set. "
+                    f"You'll receive SMS alerts at the scheduled times."
+                )
+                print(f"[TextBee] {result}")
+            else:
+                print("[TextBee] No phone number on user account — SMS skipped.")
+
         except Exception as e:
             messages.error(request, f'Error adding schedule: {e}')
         return redirect('schedule_list')
     return redirect('schedule_list')
+    
 
 @login_required
 def schedule_toggle(request, pk):

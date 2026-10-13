@@ -1,9 +1,22 @@
+import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-SECRET_KEY = 'django-insecure-pillpal-dev-key-change-in-production'
-DEBUG = True
-ALLOWED_HOSTS = ['*']
+
+# Falls back to the dev-only value if SECRET_KEY isn't set in the environment,
+# so nothing breaks locally. Set a real SECRET_KEY in Render's Environment tab.
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-pillpal-dev-key-change-in-production')
+
+# Defaults to True (dev) unless DEBUG=False is explicitly set in the environment.
+DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '.onrender.com']
+CSRF_TRUSTED_ORIGINS = ['https://*.onrender.com']
+
+# Shared secret for the /internal/run-scheduled-tasks/ endpoint (see core/views.py).
+# Set CRON_SECRET in Render's Environment tab. Falls back to a dev-only default so
+# nothing breaks locally if it isn't set -- change this before relying on it in production.
+CRON_SECRET = os.getenv('CRON_SECRET', 'dev-only-change-me')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -20,6 +33,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -63,6 +77,8 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'core' / 'static']
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 AUTH_USER_MODEL = 'accounts.User'
