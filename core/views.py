@@ -3,6 +3,10 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.utils import timezone
 from datetime import timedelta, date
+from django.conf import settings
+from django.core.management import call_command
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_GET
 from medications.models import MedicationSchedule, DoseLog, Medication
 from accounts.models import User, CaregiverPatient
 from notifications.models import Escalation
@@ -243,3 +247,35 @@ def api_sms_respond(request):
 
         return JsonResponse({'reply': reply})
     return JsonResponse({'reply': ''})
+
+@csrf_exempt
+@require_GET
+def run_seed_data(request):
+    """
+    Free-tier Render has no Shell access, so python manage.py seed_data can't
+    be run directly on the deployed instance. This endpoint runs it instead,
+    from a browser visit:
+
+        GET /internal/run-seed-data/?token=<CRON_SECRET>
+
+    Reuses CRON_SECRET (see /internal/run-scheduled-tasks/, if present) rather
+    than a separate secret -- one shared value to manage, not two.
+
+    Safe to call more than once: seed_data uses get_or_create for its
+    reference data (clinic, medications), so re-running tops up anything
+    missing without duplicating what's already there. It is NOT safe to leave
+    this endpoint callable indefinitely in a real production app (anyone with
+    the token can re-seed demo data at will) -- fine for a free-tier class
+    project with no real patient data, but note this if the project is ever
+    extended beyond that.
+    """
+    token = request.GET.get('token', '')
+    if token != settings.CRON_SECRET:
+        return JsonResponse({'error': 'invalid token'}, status=403)
+
+    try:
+        call_command('seed_data')
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': str(e)}, status=500)
+
+    return JsonResponse({'ok': True, 'ran_at': timezone.now().isoformat()})
