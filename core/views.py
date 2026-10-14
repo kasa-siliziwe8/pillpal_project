@@ -279,3 +279,45 @@ def run_seed_data(request):
         return JsonResponse({'ok': False, 'error': str(e)}, status=500)
 
     return JsonResponse({'ok': True, 'ran_at': timezone.now().isoformat()})
+
+
+@csrf_exempt
+@require_GET
+def run_create_superuser(request):
+    """
+    Free-tier Render has no Shell access, so `python manage.py createsuperuser`
+    can't be run interactively on the deployed instance. This creates one
+    fixed superuser account instead, from a browser visit:
+
+        GET /internal/run-create-superuser/?token=<CRON_SECRET>
+
+    Reuses CRON_SECRET, same as /internal/run-seed-data/.
+
+    Unlike seed_data, this is intentionally NOT safe to call repeatedly: if
+    the account already exists, it refuses rather than silently resetting the
+    password, so a stray second visit to this URL can't quietly take over an
+    account you've since changed the password on.
+
+    Security note: this endpoint, like /internal/run-seed-data/, should only
+    ever be reachable with the CRON_SECRET token, and is appropriate for a
+    free-tier class project with no real patient data -- it is not a pattern
+    to carry into a real production deployment.
+    """
+    token = request.GET.get('token', '')
+    if token != settings.CRON_SECRET:
+        return JsonResponse({'error': 'invalid token'}, status=403)
+
+    username = 'admin'
+    password = request.GET.get('password', '')
+    if not password:
+        return JsonResponse({'error': 'pass ?password=<new password> in the URL'}, status=400)
+
+    if User.objects.filter(username=username).exists():
+        return JsonResponse({
+            'ok': False,
+            'error': f'A user named "{username}" already exists -- not touching it. '
+                     f'Use the Django admin to reset its password instead, or delete it first.',
+        }, status=409)
+
+    User.objects.create_superuser(username=username, password=password, role='clinic_admin')
+    return JsonResponse({'ok': True, 'username': username, 'ran_at': timezone.now().isoformat()})
