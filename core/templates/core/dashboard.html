@@ -16,6 +16,18 @@
   </div>
 </div>
 
+<div class="card mb-20" style="border:1px dashed var(--red);background:#FFF6F6;">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+    <div>
+      <div class="card-label" style="color:var(--red);">⚠ Demo Tool</div>
+      <div class="text-sm">Simulate a missed dose to trigger the escalation protocol instantly, for demonstration purposes.</div>
+    </div>
+    <button class="btn btn-ghost" id="demoTriggerBtn" style="border-color:var(--red);color:var(--red);white-space:nowrap;"
+            onclick="triggerDemoMissedDose()">Simulate Missed Dose</button>
+  </div>
+  <div id="demoTriggerResult" class="text-xs mt-4"></div>
+</div>
+
 <div class="grid-main">
   <div>
     <!-- Adherence Ring -->
@@ -367,5 +379,38 @@ document.addEventListener('visibilitychange', function () {
   }
 });
 {% endif %}
+
+function triggerDemoMissedDose() {
+  var btn = document.getElementById('demoTriggerBtn');
+  var resultEl = document.getElementById('demoTriggerResult');
+  btn.disabled = true;
+  btn.textContent = 'Simulating…';
+  resultEl.textContent = '';
+
+  fetch('/demo/trigger-missed-dose/', {
+    method: 'POST',
+    headers: {'X-CSRFToken': '{{ csrf_token }}'}
+  }).then(function (r) { return r.json(); }).then(function (d) {
+    btn.disabled = false;
+    btn.textContent = 'Simulate Missed Dose';
+    if (d.ok) {
+      resultEl.textContent = '✅ Missed dose created for ' + d.medication +
+        ' — ' + d.level1_escalations + ' Level 1 and ' + d.level2_escalations +
+        ' Level 2 alert(s) sent. Check the caregiver/clinic dashboard now.';
+      resultEl.style.color = 'var(--teal)';
+      if (typeof showToast === 'function') {
+        showToast('⚠ Simulated missed dose for ' + d.medication);
+      }
+    } else {
+      resultEl.textContent = '❌ ' + (d.error || 'Something went wrong.');
+      resultEl.style.color = 'var(--red)';
+    }
+  }).catch(function () {
+    btn.disabled = false;
+    btn.textContent = 'Simulate Missed Dose';
+    resultEl.textContent = '❌ Request failed — check your connection and try again.';
+    resultEl.style.color = 'var(--red)';
+  });
+}
 </script>
 {% endblock %}

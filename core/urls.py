@@ -10,4 +10,5 @@ urlpatterns = [
     path('api/sms-respond/', views.api_sms_respond, name='api_sms_respond'),
     path('internal/run-seed-data/', views.run_seed_data, name='run_seed_data'),
     path('internal/run-create-superuser/', views.run_create_superuser, name='run_create_superuser'),
+    path('demo/trigger-missed-dose/', views.demo_trigger_missed_dose, name='demo_trigger_missed_dose'),
 ]

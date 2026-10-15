@@ -10,7 +10,7 @@ from django.views.decorators.http import require_GET
 from medications.models import MedicationSchedule, DoseLog, Medication
 from accounts.models import User, CaregiverPatient
 from notifications.models import Escalation
-from notifications.escalation import resolve_for_dose
+from notifications.escalation import resolve_for_dose, run_escalation_check
 import json
 from notifications.services import send_notification
 from medications.models import DoseLog
@@ -321,3 +321,54 @@ def run_create_superuser(request):
 
     User.objects.create_superuser(username=username, password=password, role='clinic_admin')
     return JsonResponse({'ok': True, 'username': username, 'ran_at': timezone.now().isoformat()})
+
+
+@login_required
+def demo_trigger_missed_dose(request):
+    """
+    Demo helper: lets a logged-in patient instantly simulate having missed a
+    dose, for live demonstration of the escalation protocol without waiting
+    real time or using the shell (which isn't available on Render's free
+    tier). Button lives on the patient dashboard.
+
+    POST only, since it creates real data -- a GET to this URL (e.g. a stray
+    link click, a crawler) must not trigger it.
+
+    Picks the patient's first active medication schedule, creates a DoseLog
+    for 90 minutes ago (just past the Level 1 threshold), and immediately
+    runs the escalation check so the resulting alert appears right away
+    rather than waiting for the next scheduled/polled check.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    if request.user.role != 'patient':
+        return JsonResponse({'error': 'Only available for patient accounts'}, status=403)
+
+    schedule = MedicationSchedule.objects.filter(
+        patient=request.user, is_active=True
+    ).select_related('medication').first()
+
+    if not schedule:
+        return JsonResponse({
+            'ok': False,
+            'error': 'No active medication schedule found for this account. '
+                     'Add a medication schedule first, then try again.',
+        }, status=400)
+
+    now = timezone.now()
+    dose = DoseLog.objects.create(
+        schedule=schedule,
+        patient=request.user,
+        scheduled_datetime=now - timedelta(minutes=90),
+        status='pending',
+    )
+    result = run_escalation_check(now)
+
+    return JsonResponse({
+        'ok': True,
+        'medication': schedule.medication.generic_name,
+        'dose_id': dose.pk,
+        'level1_escalations': result.level1_created,
+        'level2_escalations': result.level2_created,
+    })
